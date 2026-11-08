@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Nagla Technician</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main { max-width: 560px; padding-bottom: 84px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 4px; }
+    .stat b { display: block; font-size: 24px; color: var(--accent); }
+    .task { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+    .task:hover { border-color: var(--accent); }
+    .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 14px; }
+    .kv dt { color: var(--muted); } .kv dd { margin: 0; }
+    .status { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .status .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); flex: none; display: grid; place-items: center; font-size: 12px; }
+    .status.done .dot { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .status button { margin-left: auto; }
+    .stars button { font-size: 22px; padding: 2px 6px; border-color: var(--line); }
+    .stars button.on { color: #f5b301; border-color: #f5b301; }
+    .chat { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .msg { padding: 6px 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); max-width: 85%; }
+    .msg.me { align-self: flex-end; border-color: var(--accent); }
+    nav.bottom { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--card); border-top: 1px solid var(--line);
+      padding-bottom: env(safe-area-inset-bottom); }
+    nav.bottom button { flex: 1; border: 0; border-radius: 0; padding: 14px 0; }
+    nav.bottom button.on { color: var(--accent); font-weight: 700; }
+    .done-big { text-align: center; font-size: 44px; color: var(--accent); }
+  </style>
+</head>
+<body>
+<main id="view"></main>
+<nav class="bottom">
+  <button data-go="home">Home</button><button data-go="tasks">Tasks</button><button data-go="profile">Profile</button>
+</nav>
+<script type="module">
+  import { $, api, banner, esc, header, nice, sar } from './api.js';
+
+  const me = await header(['agent']);
+  const view = $('#view');
+  let state = { page: 'home', scope: 'all', taskId: null };
+  let timer = null;
+
+  const when = (t) => [t.date_from, t.preferred_time?.slice(0, 5)].filter(Boolean).join(', ');
+  const route = (t) => `${esc(t.pickup_address ?? '?')} → ${esc(t.dropoff_address ?? '?')}`;
+  const bucketPill = (b) => `<span class="pill ${b === 'in_progress' ? 'ai' : ''}">${esc(nice(b))}</span>`;
+  const taskCard = (t) => `<div class="task" data-task="${t.id}">
+      <div class="row"><b>Move #${t.move_no}</b>${bucketPill(t.bucket)}<span class="muted small" style="margin-left:auto">${esc(nice(t.current_stage))}</span></div>
+      <div class="small">${route(t)}</div>
+      <div class="small muted">${esc(when(t))} · ${esc(t.customer_name)}</div>
+      ${t.progress ? `<div class="bar" style="margin-top:6px"><i style="width:${t.progress.percent}%"></i></div>` : ''}
+    </div>`;
+
+  function go(page, extra = {}) {
+    state = { ...state, page, ...extra };
+    document.querySelectorAll('nav.bottom button').forEach((b) => b.classList.toggle('on', b.dataset.go === page || (page === 'task' && b.dataset.go === 'tasks')));
+    clearInterval(timer);
+    render().catch(() => {});
+    if (page === 'task') timer = setInterval(() => refreshChat().catch(() => {}), 5000);
+  }
+
+  async function render() {
+    if (state.page === 'home') {
+      const s = await api('GET', '/tech/summary');
+      view.innerHTML = `<h1>Hello, ${esc(s.name)} 👋</h1>
+        <div class="card"><h2>Today's summary</h2><div class="stats">
+          <div class="stat"><b>${s.counts.assigned}</b><span class="small muted">Assigned</span></div>
+          <div class="stat"><b>${s.counts.in_progress}</b><span class="small muted">In progress</span></div>
+          <div class="stat"><b>${s.counts.completed}</b><span class="small muted">Completed</span></div></div></div>
+        <div class="card"><h2>Next task</h2>${s.next_task ? taskCard(s.next_task) : '<p class="muted">No open tasks. Your company admin assigns them.</p>'}
+          <button class="primary" style="width:100%" data-go="tasks">View tasks</button></div>`;
+    } else if (state.page === 'tasks') {
+      const tasks = await api('GET', `/tech/tasks?scope=${state.scope}`);
+      view.innerHTML = `<h1>My tasks</h1>
+        <div class="tabs">${['all', 'assigned', 'in_progress', 'completed'].map((s) => `<button data-scope="${s}" class="${s === state.scope ? 'on' : ''}">${nice(s)}</button>`).join('')}</div>
+        ${tasks.map(taskCard).join('') || '<p class="muted">No tasks here.</p>'}`;
+    } else if (state.page === 'task') {
+      await renderTask();
+    } else if (state.page === 'profile') {
+      const p = await api('GET', '/tech/profile');
+      view.innerHTML = `<h1>Profile</h1>
+        <div class="card" style="text-align:center"><h2 style="margin:0">${esc(p.name)}</h2><div class="muted">Technician · ${esc(p.company_name ?? '')}</div>
+          <div class="stats" style="margin-top:12px">
+            <div class="stat"><b>${p.completed_moves}</b><span class="small muted">Completed moves</span></div>
+            <div class="stat"><b>${p.rating.average ?? '–'}</b><span class="small muted">Rating (${p.rating.count})</span></div>
+            <div class="stat"><b>${p.performance.avg_job_minutes ?? '–'}</b><span class="small muted">Avg job min</span></div></div></div>
+        <div class="card"><h2>Performance</h2><dl class="kv">
+          <dt>Assigned</dt><dd>${p.performance.assigned}</dd><dt>In progress</dt><dd>${p.performance.in_progress}</dd>
+          <dt>Last 30 days</dt><dd>${p.performance.completed_last_30_days} completed</dd></dl></div>
+        <div class="card"><h2>Recent reviews</h2>${p.recent_reviews.map((r) => `<div class="timeline"><div>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)} <span class="small muted">Move #${r.move_no}</span><br>${esc(r.comment ?? '')}</div></div>`).join('') || '<p class="muted">No reviews yet.</p>'}</div>
+        <div class="card small muted">${esc(p.email)}</div>`;
+    }
+  }
+
+  async function renderTask() {
+    const t = await api('GET', `/tech/tasks/${state.taskId}`);
+    const nav = (p, label) => p.navigation_url ? `<a href="${esc(p.navigation_url)}" target="_blank" rel="noopener"><button>Navigate to ${label}</button></a>` : '';
+    const loc = (p) => `${esc(p.address ?? '–')}<div class="small muted">floor ${p.floor ?? '–'} · ${p.has_elevator ? 'elevator' : 'no elevator'}</div>`;
+    const sheet = t.job_sheet;
+    view.innerHTML = `<p><button data-go="tasks">← Tasks</button></p>
+      <div class="row"><h1 style="margin:0">Move #${t.move_no}</h1>${bucketPill(t.bucket)}</div>
+      ${t.progress ? `<div class="bar" style="margin:10px 0"><i style="width:${t.progress.percent}%"></i></div>` : `<p class="pill warn">${esc(nice(t.current_stage))}</p>`}
+
+      ${t.current_stage === 'completed' ? `<div class="card"><div class="done-big">✓</div>
+        <p style="text-align:center"><b>The move has been completed successfully!</b><br><span class="muted small">${t.duration_minutes != null ? `${t.duration_minutes} min on the job` : ''}</span></p>
+        <h2>Rate the client</h2>${t.client_rating
+          ? `<p>${'★'.repeat(t.client_rating.stars)}${'☆'.repeat(5 - t.client_rating.stars)} ${esc(t.client_rating.comment ?? '')}</p>`
+          : `<form id="rate"><div class="stars row">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}">★</button>`).join('')}</div>
+             <p><textarea name="comment" rows="2" style="width:100%" placeholder="Comment (optional)"></textarea></p>
+             <button class="primary" style="width:100%">Rate and close the task</button></form>`}</div>` : ''}
+
+      <div class="card"><h2>Move information</h2><dl class="kv">
+        <dt>Client</dt><dd>${esc(t.customer.name)}</dd>
+        <dt>Pickup</dt><dd>${loc(t.pickup)}</dd>
+        <dt>Delivery</dt><dd>${loc(t.dropoff)}</dd>
+        <dt>Services</dt><dd>${t.services.map(nice).join(', ')}</dd>
+        <dt>Scheduled</dt><dd>${esc(when(t.schedule))}${t.schedule.date_to && t.schedule.date_to !== t.schedule.date_from ? ` – ${esc(t.schedule.date_to)}` : ''}</dd>
+        ${t.quote ? `<dt>Truck</dt><dd>${esc(t.quote.truck_name)} × ${t.quote.trips} · crew ${t.quote.crew_size} · ~${t.quote.estimated_minutes} min</dd>` : ''}
+        ${t.notes ? `<dt>Notes</dt><dd>${esc(t.notes)}</dd>` : ''}</dl>
+        <p class="row">${nav(t.pickup, 'pickup')}${nav(t.dropoff, 'delivery')}</p></div>
+
+      <div class="card"><h2>Update status</h2>
+        ${t.statuses.map((s) => `<div class="status ${s.done ? 'done' : ''}"><span class="dot">${s.done ? '✓' : ''}</span>${esc(s.label)}
+          ${t.next_stages.includes(s.stage) ? `<button data-stage="${s.stage}" class="${s.stage === t.recommended_next ? 'primary' : ''}">${s.stage === t.recommended_next ? 'Set now' : 'Skip to'}</button>` : ''}</div>`).join('')}
+        ${t.next_stages.length ? `<p><label>Optional photo with the update <input type="file" id="photo" accept="image/*" capture="environment"></label></p>` : ''}
+      </div>
+
+      <div class="card"><h2>Chat with the client</h2><div class="chat" id="chat"></div>
+        <form id="send" class="row"><input name="body" placeholder="Message" style="flex:1" required maxlength="2000"><button class="primary">Send</button></form></div>
+
+      <div class="card"><h2>Items (${sheet.totals.items}, ${sheet.totals.volume_m3} m³, ${sheet.totals.weight_kg} kg)</h2>
+        ${sheet.load_order.map((i) => `<div class="small">${i.step}. ${esc(i.name_en)}${i.quantity > 1 ? ' ×' + i.quantity : ''}
+          ${i.dismantle ? '<span class="pill">dismantle</span>' : ''}${i.heavy ? '<span class="pill">heavy</span>' : ''}${i.fragile ? '<span class="pill warn">fragile</span>' : ''}</div>`).join('')}</div>
+
+      <div class="card"><h2>Timeline</h2><div class="timeline">${t.events.map((e) => `<div class="small">${new Date(e.created_at).toLocaleString()} · ${esc(nice(e.stage))}${e.skipped ? ' <span class="muted">(skipped)</span>' : ''}${e.photo_url ? ` · <a href="${esc(e.photo_url)}" target="_blank">photo</a>` : ''}</div>`).join('')}</div></div>`;
+    await refreshChat();
+  }
+
+  async function refreshChat() {
+    const box = $('#chat'); if (!box || state.page !== 'task') return;
+    const msgs = await api('GET', `/moves/${state.taskId}/messages`, null, { quiet: true });
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 10;
+    box.innerHTML = msgs.map((m) => `<div class="msg ${m.sender_id === me.id ? 'me' : ''}"><div class="small muted">${esc(m.sender_name)} · ${esc(nice(m.sender_role === 'agent' ? 'technician' : m.sender_role))}</div>${esc(m.body)}</div>`).join('')
+      || '<p class="muted small">No messages yet.</p>';
+    if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  let stars = 0;
+  view.addEventListener('click', async (e) => {
+    const el = e.target.closest('[data-task],[data-scope],[data-stage],[data-star],[data-go]');
+    if (!el || !view.contains(el)) return;
+    if (el.dataset.task) go('task', { taskId: el.dataset.task });
+    else if (el.dataset.go) go(el.dataset.go);
+    else if (el.dataset.scope) go('tasks', { scope: el.dataset.scope });
+    else if (el.dataset.star) {
+      stars = Number(el.dataset.star);
+      el.parentElement.querySelectorAll('button').forEach((b) => b.classList.toggle('on', Number(b.dataset.star) <= stars));
+    } else if (el.dataset.stage) {
+      el.disabled = true;
+      const file = $('#photo')?.files?.[0];
+      const body = file ? new FormData() : { stage: el.dataset.stage, idempotency_key: crypto.randomUUID() };
+      if (file) { body.set('stage', el.dataset.stage); body.set('idempotency_key', crypto.randomUUID()); body.set('photo', file); }
+      try {
+        await api('POST', `/tech/tasks/${state.taskId}/status`, body);
+        banner(`Status: ${nice(el.dataset.stage)}`, true);
+      } finally { await renderTask(); }
+    }
+  });
+  view.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (e.target.id === 'send') {
+      await api('POST', `/moves/${state.taskId}/messages`, Object.fromEntries(new FormData(e.target)));
+      e.target.reset(); await refreshChat();
+    } else if (e.target.id === 'rate') {
+      if (!stars) return banner('Pick 1 to 5 stars');
+      await api('POST', `/tech/tasks/${state.taskId}/rate-client`, { stars, comment: e.target.comment.value || undefined });
+      banner('Client rated. Task closed.', true); stars = 0; await renderTask();
+    }
+  });
+  document.querySelectorAll('nav.bottom button').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+
+  if (me) go('home');
+</script>
+</body>
+</html>

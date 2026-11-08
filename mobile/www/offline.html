@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nagla – offline</title>
+<style>body{font:16px/1.5 system-ui;padding:24px;background:#f5f6f8;color:#1c2230}code{background:#e3e6eb;padding:1px 4px;border-radius:4px;word-break:break-all}button{padding:12px 18px;font-size:16px;border-radius:8px;border:0;background:#0f766e;color:#fff}</style>
+<script>window.NAGLA_SERVER = "https://nagla.arc-homlab.com/app/index.html";</script></head>
+<body><h1>Can't reach the Nagla server</h1>
+<p>Check your internet connection and try again.</p>
+<p class="small">Server: <code id="srv"></code></p>
+<p id="local" hidden>This build uses this PC's API: start it (<code>npm run dev</code> in <code>api/</code>), connect the phone over USB and run <code>adb reverse tcp:3000 tcp:3000</code>.</p>
+<button id="retry">Retry</button>
+<script>
+  var url = window.NAGLA_SERVER || 'http://localhost:3000/app/index.html';
+  document.getElementById('srv').textContent = url.replace(/\/(app|dev)\/index\.html$/, '');
+  document.getElementById('local').hidden = !/^http:\/\/localhost/.test(url);
+  document.getElementById('retry').onclick = function () { location.href = url; };
+</script></body></html>

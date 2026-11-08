@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nagla
+      POSTGRES_PASSWORD: nagla
+      POSTGRES_DB: nagla
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nagla"]
+      interval: 2s
+      retries: 20
+
+volumes:
+  pgdata:

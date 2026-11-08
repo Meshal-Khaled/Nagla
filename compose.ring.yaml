@@ -1,0 +1,70 @@
+# Nagla on the "ring" server, running 24/7 (deployed as ~/ring-apps/nagla/compose.yaml).
+# Only the API is published, on 127.0.0.1:4926 (the tunnel / port forward points there).
+# POSTGRES_PASSWORD comes from ./.env next to this file; app settings from api/.env and ai/.env.
+name: nagla
+
+x-api-env: &api-env
+  NODE_ENV: development
+  PORT: "3000"
+  DATABASE_URL: postgres://nagla:${POSTGRES_PASSWORD}@postgres:5432/nagla
+  CATALOG_DATABASE_URL: postgres://nagla:${POSTGRES_PASSWORD}@postgres:5432/nagla_catalog
+  AI_URL: http://ai:8000
+  STORAGE_DIR: /app/storage
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nagla
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: nagla
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nagla"]
+      interval: 5s
+      retries: 20
+
+  ai:
+    build: { context: ., dockerfile: ai/Dockerfile }
+    restart: unless-stopped
+    env_file: ai/.env
+
+  api:
+    build: { context: ., dockerfile: api/Dockerfile }
+    image: nagla-api
+    restart: unless-stopped
+    env_file: api/.env
+    environment: *api-env
+    # migrations + seed are idempotent; run on every start, then serve
+    command: sh -c "npx tsx src/db/migrate.ts latest && npx tsx src/db/seed/index.ts && exec npx tsx src/server.ts"
+    ports:
+      - "127.0.0.1:4926:3000"
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      postgres: { condition: service_healthy }
+      ai: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      start_period: 90s
+      retries: 5
+
+  worker:
+    build: { context: ., dockerfile: api/Dockerfile }
+    image: nagla-api
+    restart: unless-stopped
+    env_file: api/.env
+    environment: *api-env
+    command: npx tsx src/worker.ts
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  storage:

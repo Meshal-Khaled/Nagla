@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nagla Dev Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Sign in</h1>
+  <div class="grid">
+    <form class="card" id="login">
+      <h2>Email and password</h2>
+      <label>Email <input name="email" type="email" required autocomplete="username"></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
+      <p class="row"><button class="primary">Log in</button></p>
+      <div id="googleBox" hidden>
+        <p class="muted small" style="text-align:center;margin:6px 0">or</p>
+        <p class="row"><button type="button" id="google" style="width:100%">Continue with Google</button></p>
+      </div>
+      <p class="muted small">Seeded users: <code>customer@nagla.test</code>, <code>admin@saqr.test</code>, <code>admin@fastmove.test</code>, technicians <code>tech@saqr.test</code>, <code>tech@fastmove.test</code>.
+        Password: <code>SEED_PASSWORD</code> in <code>api/.env</code>.</p>
+      <p class="row small"><button type="button" data-fill="customer@nagla.test">Fill customer</button>
+        <button type="button" data-fill="admin@saqr.test">Fill Al-Saqr admin</button>
+        <button type="button" data-fill="admin@fastmove.test">Fill Fast Move admin</button>
+        <button type="button" data-fill="tech@saqr.test">Fill Al-Saqr technician</button></p>
+    </form>
+    <form class="card" id="register">
+      <h2>New customer</h2>
+      <label>Name <input name="name" required></label>
+      <label>Email <input name="email" type="email" required></label>
+      <label>Password (8+) <input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+      <p class="row"><button class="primary">Register</button></p>
+    </form>
+  </div>
+</main>
+<script type="module">
+  import { api, auth, header } from './api.js';
+
+  const go = async () => {
+    const me = await api('GET', '/auth/me');
+    location.href = { customer: 'moves.html', company_admin: 'company.html', agent: 'tech.html' }[me.role];
+  };
+
+  // back from Google with a one-time code (web redirect flow)
+  const code = new URLSearchParams(location.search).get('code');
+  if (code) {
+    history.replaceState(null, '', 'index.html');
+    auth.save(await api('POST', '/auth/google/exchange', { code }));
+    await go();
+  }
+  await header();
+
+  document.querySelectorAll('[data-fill]').forEach((b) => b.addEventListener('click', () => {
+    document.querySelector('#login [name=email]').value = b.dataset.fill;
+    document.querySelector('#login [name=password]').focus();
+  }));
+  document.getElementById('login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    auth.save(await api('POST', '/auth/login', Object.fromEntries(new FormData(e.target))));
+    await go();
+  });
+  document.getElementById('register').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    auth.save(await api('POST', '/auth/register', Object.fromEntries(new FormData(e.target))));
+    await go();
+  });
+
+  // Google is a second option; anything failing here must not touch the email/password form above.
+  // Android app: native SDK (Credential Manager) → ID token → API. Desktop browser: redirect flow.
+  try {
+    const cap = window.Capacitor;
+    const isNative = !!cap?.isNativePlatform?.() && !!cap?.isPluginAvailable?.('NaglaGoogle');
+    // the remote page gets Capacitor's native bridge only (no @capacitor/core bundle), so call it directly
+    const nativeGoogle = isNative
+      ? (cap.Plugins?.NaglaGoogle ?? { signIn: (opts) => cap.nativePromise('NaglaGoogle', 'signIn', opts) })
+      : null;
+    const google = await api('GET', '/auth/google/status', null, { quiet: true }).catch(() => ({}));
+    if (nativeGoogle ? google.native : google.web) document.getElementById('googleBox').hidden = false;
+    document.getElementById('google').addEventListener('click', async (e) => {
+      if (!nativeGoogle) { location.href = '/auth/google'; return; }
+      e.target.disabled = true;
+      try {
+        const { idToken } = await nativeGoogle.signIn({ serverClientId: google.client_id });
+        auth.save(await api('POST', '/auth/google/native', { id_token: idToken }));
+        await go();
+      } catch (err) {
+        console.error('google sign-in', err?.code, err?.message);
+        if (err?.code !== 'canceled' && !err?.status) banner(`Google sign-in: ${err?.message ?? err}`);
+      } finally { e.target.disabled = false; }
+    });
+  } catch (err) {
+    console.error('google setup', err);
+  }
+</script>
+</body>
+</html>

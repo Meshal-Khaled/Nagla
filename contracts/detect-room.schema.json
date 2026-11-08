@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nagla/detect-room",
+  "title": "Node ↔ FastAPI: POST /detect-room",
+  "description": "multipart/form-data. Part `meta` is JSON (DetectRoomMeta). One part per photo named `photo_<photo_id>` holding JPEG bytes. Response 200 is DetectRoomResponse; 422 {error:'invalid_model_output', detail} when the model output is still invalid after one retry; 400 {error:'bad_request', detail} for a malformed request.",
+  "$defs": {
+    "SizeClass": { "enum": ["small", "medium", "large"] },
+    "Unit": { "type": "number", "minimum": 0, "maximum": 1 },
+    "DetectRoomMeta": {
+      "type": "object",
+      "required": ["move_id", "room", "photo_ids", "categories", "size_classes"],
+      "properties": {
+        "move_id": { "type": "string" },
+        "room": { "type": "string" },
+        "photo_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "categories": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "Closed list; must include 'other'" },
+        "size_classes": { "type": "array", "items": { "$ref": "#/$defs/SizeClass" } }
+      }
+    },
+    "DetectRoomResponse": {
+      "type": "object",
+      "required": ["room", "items"],
+      "properties": {
+        "room": { "type": "string" },
+        "items": {
+          "type": "array",
+          "description": "One entry per physical object in the room, de-duplicated across the room's photos",
+          "items": {
+            "type": "object",
+            "required": ["category", "size_class", "sightings"],
+            "properties": {
+              "category": { "type": "string", "description": "One of meta.categories ('other' when unsure)" },
+              "size_class": { "$ref": "#/$defs/SizeClass" },
+              "confidence": { "oneOf": [{ "$ref": "#/$defs/Unit" }, { "type": "null" }] },
+              "sightings": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["photo_id"],
+                  "properties": {
+                    "photo_id": { "type": "string", "description": "One of meta.photo_ids" },
+                    "box": {
+                      "oneOf": [
+                        { "type": "null" },
+                        {
+                          "type": "object",
+                          "required": ["x", "y", "w", "h"],
+                          "description": "Normalised 0–1, top-left origin. Display only.",
+                          "properties": {
+                            "x": { "$ref": "#/$defs/Unit" }, "y": { "$ref": "#/$defs/Unit" },
+                            "w": { "$ref": "#/$defs/Unit" }, "h": { "$ref": "#/$defs/Unit" }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

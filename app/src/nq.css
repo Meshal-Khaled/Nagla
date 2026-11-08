@@ -1,0 +1,30 @@
+/* Additions for the API-connected screens, on top of style.css / phone.css (same tokens). */
+.nq-progress { height: 10px; border-radius: 99px; background: var(--soft); overflow: hidden; margin: 10px 0; }
+.nq-progress i { display: block; height: 100%; background: var(--naqla-teal); border-radius: inherit; transition: width .4s; }
+
+.nq-chat { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; margin: 8px 0 12px; }
+.nq-msg { align-self: flex-start; max-width: 85%; padding: 8px 12px; border-radius: 14px; background: var(--soft); overflow-wrap: anywhere; }
+.nq-msg.me { align-self: flex-end; background: var(--tint); }
+.nq-msg small { display: block; color: var(--muted); font-size: 12px; }
+.nq-send { display: flex; gap: 8px; align-items: stretch; }
+.nq-send input, .nq-send select { flex: 1; min-width: 0; min-height: 48px; }
+
+.nq-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.nq-photos figure { position: relative; margin: 0; }
+.nq-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; display: block; }
+.nq-photos .iconbtn { position: absolute; top: 4px; inset-inline-end: 4px; background: var(--surface); }
+
+.nq-item { display: grid; grid-template-columns: 1fr 72px 96px 40px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.nq-item small { display: block; color: var(--muted); font-size: 12px; }
+.nq-item input, .nq-item select { min-height: 44px; width: 100%; }
+@media (max-width: 380px) { .nq-item { grid-template-columns: 1fr 64px 40px; } .nq-item select { grid-column: 1 / 3; } }
+
+.nq-catalog { display: flex; flex-direction: column; max-height: 55vh; overflow-y: auto; margin-top: 10px; }
+.nq-catalog .listrow { width: 100%; text-align: start; background: none; border: 0; border-bottom: 1px solid var(--line); }
+.nq-catalog small { display: block; color: var(--muted); }
+
+.nq-offer .nq-price { font-size: 28px; font-weight: 700; margin: 6px 0; color: var(--action); }
+.tracker .nq-stagebtn { margin-inline-start: auto; min-height: 40px; padding: 6px 12px; }
+.tracker li { align-items: center; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+.tabs .btn { white-space: nowrap; min-height: 40px; }

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nagla Company Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <div class="row"><h1 style="margin-right:auto">Company moves</h1>
+    <select id="scope"><option>all</option><option>incoming</option><option>active</option><option>closed</option></select></div>
+  <div class="card" style="overflow-x:auto"><table><thead><tr><th>Move</th><th>Date</th><th>Customer</th><th>Stage</th><th>Price</th><th>Truck</th><th>From → To</th><th>Technician</th><th>Actions</th></tr></thead>
+    <tbody id="rows"></tbody></table></div>
+  <div class="card" id="linkBox" hidden><h2>Agent link</h2><p class="small muted">Shown once. Open it on the crew phone (or in a new tab to simulate the agent).</p>
+    <p><a id="agentLink" target="_blank"></a></p></div>
+  <div class="card" id="sheetBox" hidden><h2>Job sheet</h2><pre id="sheet" class="small" style="white-space:pre-wrap"></pre></div>
+  <div class="card" id="agentsBox" hidden>
+    <h2>Technicians</h2>
+    <ul id="agents"></ul>
+    <form id="newAgent" class="row">
+      <input name="name" placeholder="Name" required><input name="email" type="email" placeholder="Email" required>
+      <input name="password" type="password" placeholder="Password (8+)" minlength="8" required autocomplete="new-password">
+      <button>Add technician</button>
+    </form>
+  </div>
+</main>
+<script type="module">
+  import { $, api, banner, esc, header, nice, sar } from './api.js';
+  const me = await header(['company_admin', 'agent']);
+  const isAdmin = me?.role === 'company_admin';
+
+  // crew_assigned is set by assigning a technician (Technician column)
+  const ADMIN_ACTIONS = { confirmed: ['accepted', 'rejected', 'cancelled'], accepted: ['cancelled'], crew_assigned: ['cancelled'] };
+  let agents = [];
+
+  async function load() {
+    const moves = await api('GET', `/company/moves?scope=${$('#scope').value}`);
+    $('#rows').innerHTML = moves.map((m) => `
+      <tr data-id="${m.id}">
+        <td>#${m.move_no}</td>
+        <td>${esc(m.date_from)}${m.date_to && m.date_to !== m.date_from ? ' – ' + esc(m.date_to) : ''}</td>
+        <td>${esc(m.customer_name)}</td>
+        <td>${esc(nice(m.current_stage))}${m.progress ? ` <span class="muted small">${m.progress.percent}%</span>` : ''}</td>
+        <td>${m.price_halalas != null ? sar(m.price_halalas) : ''}</td>
+        <td class="small">${esc(m.truck_name ?? '')} × ${m.trips ?? ''} · crew ${m.crew_size ?? ''}</td>
+        <td class="small">${esc(m.pickup_address)} → ${esc(m.dropoff_address)}</td>
+        <td>${isAdmin && ['accepted', 'crew_assigned'].includes(m.current_stage)
+          ? `<select data-assign><option value="">${m.assigned_agent_id ? '' : 'Assign…'}</option>${agents.map((a) => `<option value="${a.id}" ${a.id === m.assigned_agent_id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>`
+          : esc(m.assigned_agent_name ?? '–')}</td>
+        <td class="row">
+          ${isAdmin ? (ADMIN_ACTIONS[m.current_stage] ?? []).map((s) => `<button data-stage="${s}" class="${s === 'rejected' || s === 'cancelled' ? 'danger' : ''}">${nice(s)}</button>`).join('') : ''}
+          ${isAdmin && !['completed', 'rejected', 'cancelled'].includes(m.current_stage) ? '<button data-link>Agent link</button>' : ''}
+          <button data-sheet>Job sheet</button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="9" class="muted">No moves.</td></tr>';
+  }
+
+  $('#rows').addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    const id = tr.dataset.id;
+    if (e.target.dataset.stage) {
+      const stage = e.target.dataset.stage;
+      if (stage === 'cancelled') await api('POST', `/moves/${id}/cancel`, { idempotency_key: crypto.randomUUID() });
+      else await api('POST', `/moves/${id}/events`, { stage, idempotency_key: crypto.randomUUID() });
+      banner(`Set ${nice(stage)}`, true); await load();
+    } else if ('link' in e.target.dataset) {
+      const { agent_link } = await api('POST', `/company/moves/${id}/agent-link`);
+      $('#agentLink').href = agent_link; $('#agentLink').textContent = agent_link; $('#linkBox').hidden = false;
+    } else if ('sheet' in e.target.dataset) {
+      const s = await api('GET', `/moves/${id}/job-sheet`);
+      $('#sheet').textContent = [
+        `${s.move.pickup_address} (floor ${s.move.pickup_floor ?? '-'}) → ${s.move.dropoff_address} (floor ${s.move.dropoff_floor ?? '-'})`,
+        `${s.totals.items} items · ${s.totals.volume_m3} m³ · ${s.totals.weight_kg} kg · dismantle ${s.totals.dismantle_minutes} min`,
+        s.quote ? `${s.quote.truck_name} × ${s.quote.trips} · crew ${s.quote.crew_size} · ~${s.quote.estimated_minutes} min` : '',
+        '', 'Load order:', ...s.load_order.map((i) => `${i.step}. ${i.label} ${i.name_en}${i.quantity > 1 ? ' ×' + i.quantity : ''}${i.dismantle ? ' [dismantle]' : ''}${i.heavy ? ' [heavy]' : ''}${i.fragile ? ' [fragile]' : ''}`),
+      ].join('\n');
+      $('#sheetBox').hidden = false;
+    }
+  });
+
+  $('#rows').addEventListener('change', async (e) => {
+    if (!('assign' in e.target.dataset) || !e.target.value) return;
+    const id = e.target.closest('tr').dataset.id;
+    await api('POST', `/company/moves/${id}/assign`, { agent_id: e.target.value }).catch(() => {});
+    banner('Technician assigned', true); await load();
+  });
+
+  async function loadAgents() {
+    agents = await api('GET', '/company/agents');
+    $('#agents').innerHTML = agents.map((a) => `<li>${esc(a.name)} <span class="muted">${esc(a.email)}</span></li>`).join('') || '<li class="muted">None</li>';
+  }
+  $('#newAgent').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await api('POST', '/company/agents', Object.fromEntries(new FormData(e.target)));
+    e.target.reset(); banner('Agent added', true); loadAgents();
+  });
+
+  if (me) {
+    $('#scope').addEventListener('change', load);
+    if (isAdmin) { $('#agentsBox').hidden = false; await loadAgents(); }
+    await load();
+    // don't redraw while an assign dropdown is open
+    setInterval(() => { if (!document.activeElement?.matches('select[data-assign]')) load(); }, 10000);
+  }
+</script>
+</body>
+</html>

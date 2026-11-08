@@ -1,0 +1,24 @@
+{
+  "name": "nagla-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android shell (Capacitor) for the Nagla app: loads the API-served UI (customer, company, technician).",
+  "scripts": {
+    "sync": "cap sync android",
+    "build:apk": "cap sync android && cd android && gradlew.bat assembleDebug",
+    "reverse": "\"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" reverse tcp:3000 tcp:3000",
+    "install:apk": "\"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "open": "cap open android",
+    "devices": "\"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" devices",
+    "launch": "\"%LOCALAPPDATA%\\Android\\Sdk\\platform-tools\\adb.exe\" shell am start -n com.nagla.app/.MainActivity",
+    "build:apk:domain": "set \"NAGLA_SERVER_URL=https://nagla.arc-homlab.com/app/index.html\" && npm run build:apk"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nagla My Moves</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <div class="row"><h1 style="margin-right:auto">My moves</h1><button class="primary" id="new">New move</button></div>
+  <div class="card"><table><thead><tr><th>Created</th><th>Status</th><th>Stage</th><th>Items</th><th>From</th><th>Company</th></tr></thead>
+    <tbody id="rows"></tbody></table></div>
+</main>
+<script type="module">
+  import { api, esc, header, nice } from './api.js';
+  if (await header(['customer'])) {
+    const moves = await api('GET', '/moves');
+    document.getElementById('rows').innerHTML = moves.length ? moves.map((m) => `
+      <tr style="cursor:pointer" data-id="${m.id}">
+        <td>${new Date(m.created_at).toLocaleString()}</td><td><span class="pill">${esc(m.status)}</span></td>
+        <td>${esc(nice(m.current_stage ?? '–'))}</td><td>${m.item_count}</td>
+        <td>${esc(m.pickup_address ?? '')}</td><td>${esc(m.company_name ?? '')}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="muted">No moves yet.</td></tr>';
+    document.querySelectorAll('tr[data-id]').forEach((tr) => tr.addEventListener('click', () => (location.href = `move.html?id=${tr.dataset.id}`)));
+    document.getElementById('new').addEventListener('click', async () => {
+      const m = await api('POST', '/moves');
+      location.href = `move.html?id=${m.id}`;
+    });
+  }
+</script>
+</body>
+</html>

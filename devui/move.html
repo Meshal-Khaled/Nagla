@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nagla Move Workspace</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <div class="row"><h1 id="title" style="margin-right:auto">Move</h1><span id="status" class="pill"></span></div>
+  <div class="tabs" id="tabs"></div>
+
+  <section data-tab="photos" class="card">
+    <h2>Room photos</h2>
+    <form id="upload" class="row">
+      <label>Room
+        <select name="room">
+          <option>living_room</option><option>majlis</option><option>bedroom_1</option><option>bedroom_2</option>
+          <option>kitchen</option><option>dining_room</option><option>office</option><option>storage</option>
+        </select></label>
+      <label>Photos <input type="file" name="file" accept="image/*" multiple required></label>
+      <button class="primary">Upload</button>
+    </form>
+    <div id="photoList"></div>
+  </section>
+
+  <section data-tab="detect" class="card">
+    <h2>Detect furniture</h2>
+    <p class="muted small">Sends each room's photos to the AI service in one call. Re-running replaces AI items; items you added stay.</p>
+    <p class="row"><button class="primary" id="plan">Run detection</button> <span id="jobStatus" class="muted"></span></p>
+  </section>
+
+  <section data-tab="review" class="card">
+    <h2>Review items</h2>
+    <div class="row" style="margin-bottom:8px">
+      <input id="catSearch" placeholder="Search catalog to add…" list="catList" style="min-width:240px">
+      <datalist id="catList"></datalist>
+      <button id="add">Add item</button>
+      <span style="margin-left:auto"></span>
+      <button id="merge">Merge checked into first checked</button>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th></th><th>Label</th><th>Item</th><th>Qty</th><th>Keep?</th><th>m³</th><th>Source</th><th>Change to</th><th></th></tr></thead>
+      <tbody id="items"></tbody></table></div>
+    <h2 style="margin-top:16px">Where the AI saw them</h2>
+    <div id="boxes" class="grid"></div>
+  </section>
+
+  <section data-tab="details" class="card">
+    <h2>Move details</h2>
+    <form id="details">
+      <div class="grid">
+        <fieldset class="card"><legend>Pickup</legend>
+          <label>Address <input name="pickup_address"></label>
+          <div class="row"><label>Floor <input name="pickup_floor" type="number" style="width:80px"></label>
+            <label>Elevator <select name="pickup_has_elevator"><option value="">?</option><option value="true">yes</option><option value="false">no</option></select></label></div>
+          <div class="row"><label>Lat <input name="pickup_lat" type="number" step="any" style="width:110px"></label><label>Lng <input name="pickup_lng" type="number" step="any" style="width:110px"></label></div>
+        </fieldset>
+        <fieldset class="card"><legend>Drop-off</legend>
+          <label>Address <input name="dropoff_address"></label>
+          <div class="row"><label>Floor <input name="dropoff_floor" type="number" style="width:80px"></label>
+            <label>Elevator <select name="dropoff_has_elevator"><option value="">?</option><option value="true">yes</option><option value="false">no</option></select></label></div>
+          <div class="row"><label>Lat <input name="dropoff_lat" type="number" step="any" style="width:110px"></label><label>Lng <input name="dropoff_lng" type="number" step="any" style="width:110px"></label></div>
+        </fieldset>
+        <fieldset class="card"><legend>When</legend>
+          <label>From <input name="date_from" type="date"></label>
+          <label>To <input name="date_to" type="date"></label>
+          <label>Time <input name="preferred_time" type="time"></label>
+          <label>Notes <textarea name="notes" rows="3"></textarea></label>
+        </fieldset>
+      </div>
+      <button class="primary">Save details</button>
+    </form>
+  </section>
+
+  <section data-tab="quotes" class="card">
+    <h2>Offers</h2>
+    <p class="muted small">Computed from keep items × packing factor; recomputed on every visit.</p>
+    <div id="offers" class="grid"></div>
+  </section>
+
+  <section data-tab="tracking" class="card">
+    <h2>Tracking <span class="muted small">(refreshes every 5 s)</span></h2>
+    <div id="track"></div>
+    <p class="row"><button class="danger" id="cancel">Cancel move</button> <a id="sheetLink" href="#">Job sheet</a></p>
+    <pre id="sheet" class="small" style="white-space:pre-wrap"></pre>
+    <div id="collab" hidden>
+      <h2>Chat with your technician</h2>
+      <div id="chat" class="timeline small" style="max-height:220px;overflow-y:auto"></div>
+      <form id="send" class="row"><input name="body" placeholder="Message" style="flex:1" required maxlength="2000"><button class="primary">Send</button></form>
+      <div id="rateBox" hidden><h2>Rate the service</h2>
+        <form id="rate" class="row"><select name="stars"><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option></select>
+          <input name="comment" placeholder="Comment (optional)" style="flex:1"><button class="primary">Rate</button></form></div>
+      <div id="rated" class="small muted"></div>
+    </div>
+  </section>
+</main>
+<script type="module">
+  import { $, api, banner, esc, header, nice, sar } from './api.js';
+
+  const id = new URLSearchParams(location.search).get('id');
+  const me = await header(['customer']);
+  let move;
+  let catalog = [];
+  const TABS = ['photos', 'detect', 'review', 'details', 'quotes', 'tracking'];
+  let tab = (() => { try { return localStorage.getItem('nagla.tab') || 'photos'; } catch { return 'photos'; } })();
+
+  function showTab(t) {
+    tab = t;
+    try { localStorage.setItem('nagla.tab', t); } catch {}
+    document.querySelectorAll('section[data-tab]').forEach((s) => (s.hidden = s.dataset.tab !== t));
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+    if (t === 'quotes') loadQuotes();
+    if (t === 'tracking') loadTracking();
+  }
+  $('#tabs').innerHTML = TABS.map((t) => `<button data-t="${t}">${t}</button>`).join('');
+  $('#tabs').addEventListener('click', (e) => e.target.dataset.t && showTab(e.target.dataset.t));
+
+  const draft = () => move.status === 'draft';
+
+  async function reload(m) {
+    move = m ?? (await api('GET', `/moves/${id}`));
+    $('#title').textContent = `Move ${move.id.slice(0, 8)}`;
+    $('#status').textContent = move.current_stage ? `${move.status} · ${nice(move.current_stage)}` : move.status;
+    document.querySelectorAll('#upload button, #plan, #add, #merge, #details button').forEach((b) => (b.disabled = !draft()));
+    renderPhotos(); renderItems(); renderBoxes(); fillDetails();
+  }
+
+  // ---- photos
+  function renderPhotos() {
+    const rooms = {};
+    for (const p of move.photos) (rooms[p.room] ??= []).push(p);
+    $('#photoList').innerHTML = Object.entries(rooms).map(([room, ps]) => `
+      <h3 class="small">${esc(nice(room))} (${ps.length})</h3>
+      <div class="thumbs">${ps.map((p) => `<span><img src="${p.url}" alt="${esc(room)}">
+        ${draft() ? `<button class="danger small" data-del-photo="${p.id}">×</button>` : ''}</span>`).join('')}</div>`).join('')
+      || '<p class="muted">No photos yet.</p>';
+  }
+  $('#photoList').addEventListener('click', async (e) => {
+    const pid = e.target.dataset.delPhoto;
+    if (pid) { await api('DELETE', `/photos/${pid}`); await reload(); }
+  });
+  $('#upload').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await api('POST', `/moves/${id}/photos`, fd);
+    e.target.reset(); banner('Uploaded', true); await reload();
+  });
+
+  // ---- detection job
+  $('#plan').addEventListener('click', async () => {
+    const job = await api('POST', `/moves/${id}/plan`);
+    $('#plan').disabled = true;
+    const poll = async () => {
+      const j = await api('GET', `/jobs/${job.job_id}`);
+      $('#jobStatus').textContent = `job ${j.status}${j.error ? ': ' + j.error : ''}`;
+      if (j.status === 'queued' || j.status === 'running') return setTimeout(poll, 2000);
+      $('#plan').disabled = false;
+      if (j.status === 'done') { await reload(); banner('Detection finished', true); showTab('review'); }
+    };
+    poll();
+  });
+
+  // ---- review
+  const catLabel = (c) => `${c.name_en} · ${c.size_class} · ${c.variant} (${Number(c.volume_m3).toFixed(2)} m³)`;
+  function renderItems() {
+    const opts = catalog.map((c) => `<option value="${c.id}">${esc(catLabel(c))}</option>`).join('');
+    $('#items').innerHTML = move.items.map((i) => `
+      <tr data-id="${i.id}">
+        <td><input type="checkbox" class="pick"></td>
+        <td><b>${esc(i.label)}</b></td>
+        <td>${esc(i.name_en)} <span class="muted small">${esc(i.size_class)} · ${esc(i.variant)}</span></td>
+        <td><input type="number" min="1" value="${i.quantity}" class="qty" style="width:64px"></td>
+        <td><select class="disp">${['keep', 'donate', 'sell'].map((d) => `<option ${d === i.disposition ? 'selected' : ''}>${d}</option>`).join('')}</select></td>
+        <td>${i.volume_m3.toFixed(2)}</td>
+        <td><span class="pill ${i.source === 'ai' ? 'ai' : ''}">${i.source}</span></td>
+        <td><select class="cat" style="max-width:220px"><option value="">—</option>${opts}</select></td>
+        <td><button class="danger del">Delete</button></td>
+      </tr>`).join('') || '<tr><td colspan="9" class="muted">No items. Run detection or add from the catalog.</td></tr>';
+    document.querySelectorAll('#items input, #items select, #items button').forEach((el) => (el.disabled = !draft() && !el.classList.contains('pick')));
+  }
+  $('#items').addEventListener('change', async (e) => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    const body = e.target.classList.contains('qty') ? { quantity: Number(e.target.value) }
+      : e.target.classList.contains('disp') ? { disposition: e.target.value }
+      : e.target.classList.contains('cat') && e.target.value ? { catalog_id: e.target.value } : null;
+    if (body) await reload(await api('PATCH', `/items/${tr.dataset.id}`, body));
+  });
+  $('#items').addEventListener('click', async (e) => {
+    if (e.target.classList.contains('del')) await reload(await api('DELETE', `/items/${e.target.closest('tr').dataset.id}`));
+  });
+  $('#merge').addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('#items .pick:checked')].map((c) => c.closest('tr').dataset.id);
+    if (ids.length < 2) return banner('Check at least two items');
+    await reload(await api('POST', `/moves/${id}/items/merge`, { keep_id: ids[0], merge_ids: ids.slice(1) }));
+    banner('Merged', true);
+  });
+  $('#add').addEventListener('click', async () => {
+    const c = catalog.find((x) => catLabel(x) === $('#catSearch').value);
+    if (!c) return banner('Pick an item from the list');
+    const r = await api('POST', `/moves/${id}/items`, { catalog_id: c.id });
+    $('#catSearch').value = ''; await reload(r.move);
+  });
+
+  function renderBoxes() {
+    const labelOf = Object.fromEntries(move.items.map((i) => [i.id, i.label]));
+    $('#boxes').innerHTML = move.photos.filter((p) => p.detections.length).map((p) =>
+      `<div><div class="small muted">${esc(nice(p.room))}</div><canvas data-photo="${p.id}"></canvas></div>`).join('')
+      || '<p class="muted">No detections yet.</p>';
+    for (const p of move.photos.filter((p) => p.detections.length)) {
+      const canvas = document.querySelector(`canvas[data-photo="${p.id}"]`);
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width; canvas.height = img.height;
+        const g = canvas.getContext('2d');
+        g.drawImage(img, 0, 0);
+        g.lineWidth = Math.max(2, img.width / 300); g.font = `${Math.max(12, img.width / 40)}px sans-serif`;
+        for (const d of p.detections) {
+          if (!d.box) continue;
+          const [x, y, w, h] = [d.box.x * img.width, d.box.y * img.height, d.box.w * img.width, d.box.h * img.height];
+          g.strokeStyle = '#14b8a6'; g.strokeRect(x, y, w, h);
+          const text = labelOf[d.item_id] ?? d.category;
+          g.fillStyle = '#14b8a6'; g.fillRect(x, y - parseInt(g.font) - 4, g.measureText(text).width + 8, parseInt(g.font) + 4);
+          g.fillStyle = '#fff'; g.fillText(text, x + 4, y - 4);
+        }
+      };
+      img.src = p.url;
+    }
+  }
+
+  // ---- details
+  const FIELDS = ['pickup_address', 'pickup_floor', 'pickup_has_elevator', 'pickup_lat', 'pickup_lng',
+    'dropoff_address', 'dropoff_floor', 'dropoff_has_elevator', 'dropoff_lat', 'dropoff_lng',
+    'date_from', 'date_to', 'preferred_time', 'notes'];
+  function fillDetails() {
+    const f = $('#details');
+    for (const k of FIELDS) {
+      const v = move[k];
+      f.elements[k].value = v === null || v === undefined ? '' : k === 'preferred_time' ? String(v).slice(0, 5) : String(v);
+    }
+  }
+  $('#details').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target.elements; const body = {};
+    for (const k of FIELDS) {
+      const v = f[k].value.trim();
+      if (k.endsWith('_has_elevator')) body[k] = v === '' ? null : v === 'true';
+      else if (/_floor$|_lat$|_lng$/.test(k)) body[k] = v === '' ? null : Number(v);
+      else body[k] = v === '' ? null : v;
+    }
+    await reload(await api('PATCH', `/moves/${id}`, body));
+    banner('Saved', true);
+  });
+
+  // ---- quotes + confirm
+  async function loadQuotes() {
+    const q = await api('GET', `/moves/${id}/quotes`);
+    $('#offers').innerHTML = q.offers.map((o) => `
+      <div class="offer">
+        <div><b>${esc(o.company_name)}</b></div>
+        <div class="price">${sar(o.price_halalas)}</div>
+        <div class="small">${esc(o.truck_name)} truck (${o.truck_capacity_m3} m³) × ${o.trips} trip${o.trips > 1 ? 's' : ''}</div>
+        <div class="small">${o.volume_m3} m³ packed · crew ${o.crew_size} · ~${o.estimated_minutes} min</div>
+        ${q.locked ? '<p class="pill">locked</p>' : `<p><button class="primary" data-company="${o.company_id}">Confirm with ${esc(o.company_name)}</button></p>`}
+      </div>`).join('') || '<p class="muted">No offers (add keep items first).</p>';
+  }
+  $('#offers').addEventListener('click', async (e) => {
+    const company = e.target.dataset.company; if (!company) return;
+    await reload(await api('POST', `/moves/${id}/confirm`, { company_id: company }));
+    banner('Confirmed', true); showTab('tracking');
+  });
+
+  // ---- tracking
+  async function loadTracking() {
+    if (draft() && move.status === 'draft') { $('#track').innerHTML = '<p class="muted">Not confirmed yet.</p>'; return; }
+    const t = await api('GET', `/moves/${id}/tracking`, null, { quiet: true }).catch(() => null);
+    if (!t) return;
+    $('#track').innerHTML = `
+      ${t.progress ? `<div class="bar"><i style="width:${t.progress.percent}%"></i></div>
+        <p>${esc(nice(t.current_stage))} · ${t.progress.percent}%</p>`
+        : `<p class="pill warn">${esc(nice(t.current_stage ?? t.status))}</p>`}
+      <div class="timeline">${t.events.map((e) => `<div>${esc(nice(e.stage))} ${e.skipped ? '<span class="muted">(skipped)</span>' : ''}
+        <span class="muted small">${esc(e.actor_type)} · ${new Date(e.created_at).toLocaleString()}</span>
+        ${e.photo_url ? `<a href="${e.photo_url}" target="_blank">photo</a>` : ''}</div>`).join('')}</div>`;
+    if (t.current_stage !== move.current_stage) await reload();
+    await loadCollab(t);
+  }
+
+  // chat + rating (technician journey)
+  async function loadCollab(t) {
+    $('#collab').hidden = false;
+    const msgs = await api('GET', `/moves/${id}/messages`, null, { quiet: true }).catch(() => []);
+    $('#chat').innerHTML = msgs.map((m) => `<div><b>${esc(m.sender_name)}</b> <span class="muted">${esc(m.sender_role === 'agent' ? 'technician' : nice(m.sender_role))}</span>: ${esc(m.body)}</div>`).join('')
+      || '<p class="muted">No messages yet.</p>';
+    const ratings = t.current_stage === 'completed' ? await api('GET', `/moves/${id}/ratings`, null, { quiet: true }).catch(() => []) : [];
+    const mine = ratings.find((r) => r.rater_role === 'customer');
+    $('#rateBox').hidden = t.current_stage !== 'completed' || !move.assigned_agent_id || !!mine;
+    $('#rated').textContent = mine ? `You rated ${'★'.repeat(mine.stars)} ${mine.comment ?? ''}` : '';
+  }
+  $('#send').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await api('POST', `/moves/${id}/messages`, Object.fromEntries(new FormData(e.target)));
+    e.target.reset(); loadTracking();
+  });
+  $('#rate').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    await api('POST', `/moves/${id}/rating`, { stars: Number(f.stars), comment: f.comment || undefined });
+    banner('Thanks for rating!', true); loadTracking();
+  });
+  setInterval(() => tab === 'tracking' && loadTracking(), 5000);
+  $('#cancel').addEventListener('click', async () => {
+    if (!confirm('Cancel this move?')) return;
+    await api('POST', `/moves/${id}/cancel`, { idempotency_key: crypto.randomUUID() });
+    await reload(); loadTracking();
+  });
+  $('#sheetLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const s = await api('GET', `/moves/${id}/job-sheet`);
+    $('#sheet').textContent = JSON.stringify({ totals: s.totals, quote: s.quote, load_order: s.load_order.map((i) => `${i.step}. ${i.label}${i.quantity > 1 ? ' ×' + i.quantity : ''}${i.dismantle ? ' [dismantle]' : ''}${i.heavy ? ' [heavy]' : ''}${i.fragile ? ' [fragile]' : ''}`), dismantle: s.dismantle, fragile: s.fragile }, null, 2);
+  });
+
+  if (me) {
+    catalog = await api('GET', '/catalog');
+    $('#catList').innerHTML = catalog.map((c) => `<option value="${esc(catLabel(c))}">`).join('');
+    await reload();
+    showTab(tab);
+  }
+</script>
+</body>
+</html>

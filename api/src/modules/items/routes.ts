@@ -21,6 +21,8 @@ const PatchItem = z.object({
   catalog_id: z.uuid(),
   quantity: z.number().int().min(1).max(500),
   disposition: Disposition,
+  // the customer's own name for the item; empty or null goes back to the catalog name
+  name: z.string().trim().max(100).nullable(),
 }).partial().strict();
 const Merge = z.object({
   keep_id: z.uuid(),
@@ -71,6 +73,7 @@ export async function itemRoutes(app: FastifyInstance, deps: Deps) {
     const moveId = await db.transaction().execute(async (trx) => {
       const { item } = await lockItem(trx, id, currentUser(req));
       const set: Record<string, unknown> = { quantity: body.quantity, disposition: body.disposition };
+      if (body.name !== undefined) set.custom_name = body.name || null;
       if (body.catalog_id && body.catalog_id !== item.catalog_id) {
         const cat = catalogRow(catalog, body.catalog_id);
         set.catalog_id = cat.id;

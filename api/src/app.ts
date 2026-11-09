@@ -18,6 +18,8 @@ import { quoteRoutes } from './modules/quotes/routes.js';
 import { agentPageRoutes } from './modules/tracking/agentPage.js';
 import { trackingRoutes } from './modules/tracking/routes.js';
 import { collabRoutes } from './modules/technician/collab.js';
+import { geoRoutes } from './modules/geo/routes.js';
+import { profileRoutes } from './modules/profile/routes.js';
 import { technicianRoutes } from './modules/technician/routes.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -50,7 +52,7 @@ export async function buildApp(deps: Deps) {
 
   for (const routes of [
     authRoutes, moveRoutes, photoRoutes, jobRoutes, itemRoutes, catalogRoutes, quoteRoutes,
-    trackingRoutes, agentPageRoutes, companyRoutes, deviceRoutes, technicianRoutes, collabRoutes,
+    trackingRoutes, agentPageRoutes, companyRoutes, deviceRoutes, technicianRoutes, collabRoutes, profileRoutes, geoRoutes,
   ]) {
     await routes(app, deps);
   }

@@ -119,7 +119,7 @@ describe('seed', () => {
     expect(await count('companies')).toBe(COMPANIES.length);
     expect(await count('users')).toBe(COMPANIES.length * 2 + 1); // admin + technician per company, one customer
     expect(await count('company_trucks')).toBe(5);
-    expect(await count('settings')).toBe(5);
+    expect(await count('settings')).toBe(6);
   });
 
   it('gives one company no large truck, so big moves need trips', async () => {

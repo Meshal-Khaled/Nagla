@@ -39,6 +39,8 @@ export const SETTINGS: Record<string, unknown> = {
   ],
   loading_minutes_per_m3: 4,
   draft_ttl_hours: 48,
+  // drafts the customer did not save
+  unsaved_draft_ttl_hours: 2,
   photo_retention_days: 30,
 };
 

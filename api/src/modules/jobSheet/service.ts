@@ -13,7 +13,7 @@ export async function loadJobSheet(db: Kysely<DB>, catalog: CatalogStore, moveId
   if (move.status === 'draft') throw conflict('not_confirmed', 'The job sheet exists after confirmation');
 
   const items = await db.selectFrom('move_items')
-    .select(['label', 'quantity', 'catalog_id', 'volume_m3_snapshot', 'catalog_snapshot'])
+    .select(['label', 'quantity', 'catalog_id', 'volume_m3_snapshot', 'catalog_snapshot', 'custom_name'])
     .where('move_id', '=', moveId).where('disposition', '=', 'keep')
     .execute();
 
@@ -26,8 +26,8 @@ export async function loadJobSheet(db: Kysely<DB>, catalog: CatalogStore, moveId
     const c = itemCatalog(catalog, i);
     return {
       label: i.label ?? '',
-      name_en: c.name_en,
-      name_ar: c.name_ar,
+      name_en: i.custom_name ?? c.name_en,
+      name_ar: i.custom_name ?? c.name_ar,
       quantity: i.quantity,
       volume_m3: c.volume_m3,
       weight_kg: c.weight_kg,

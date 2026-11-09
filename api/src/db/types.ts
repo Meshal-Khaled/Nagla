@@ -113,6 +113,7 @@ export interface MoveItems {
   catalog_snapshot: Json | null;
   category: string;
   created_at: Generated<Timestamp>;
+  custom_name: string | null;
   disposition: Generated<Disposition>;
   id: Generated<string>;
   label: Generated<string | null>;
@@ -146,6 +147,7 @@ export interface MoveRatings {
 export interface Moves {
   agent_token_expires_at: Timestamp | null;
   agent_token_hash: string | null;
+  archived_at: Timestamp | null;
   assigned_agent_id: string | null;
   assigned_at: Timestamp | null;
   company_id: string | null;
@@ -155,7 +157,9 @@ export interface Moves {
   customer_id: string;
   date_from: string | null;
   date_to: string | null;
+  draft_saved: Generated<boolean>;
   dropoff_address: string | null;
+  dropoff_details: Json | null;
   dropoff_floor: number | null;
   dropoff_has_elevator: boolean | null;
   dropoff_lat: Numeric | null;
@@ -164,6 +168,7 @@ export interface Moves {
   move_no: Generated<Int8>;
   notes: string | null;
   pickup_address: string | null;
+  pickup_details: Json | null;
   pickup_floor: number | null;
   pickup_has_elevator: boolean | null;
   pickup_lat: Numeric | null;
@@ -219,6 +224,19 @@ export interface TruckSizes {
   name: string;
 }
 
+export interface UserAddresses {
+  address: string;
+  created_at: Generated<Timestamp>;
+  details: Json | null;
+  floor: number | null;
+  has_elevator: boolean | null;
+  id: Generated<string>;
+  label: string;
+  lat: Numeric | null;
+  lng: Numeric | null;
+  user_id: string;
+}
+
 export interface Users {
   company_id: string | null;
   created_at: Generated<Timestamp>;
@@ -227,6 +245,7 @@ export interface Users {
   id: Generated<string>;
   name: string;
   password_hash: string | null;
+  phone: string | null;
   role: UserRole;
 }
 
@@ -247,5 +266,6 @@ export interface DB {
   refresh_tokens: RefreshTokens;
   settings: Settings;
   truck_sizes: TruckSizes;
+  user_addresses: UserAddresses;
   users: Users;
 }

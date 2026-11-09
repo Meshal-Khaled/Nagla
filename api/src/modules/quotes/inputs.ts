@@ -13,6 +13,7 @@ export async function loadSettings(db: Db) {
     crew_tiers: map.crew_tiers as EstimateSettings['crew_tiers'],
     loading_minutes_per_m3: Number(map.loading_minutes_per_m3),
     draft_ttl_hours: Number(map.draft_ttl_hours),
+    unsaved_draft_ttl_hours: Number(map.unsaved_draft_ttl_hours ?? 2),
     photo_retention_days: Number(map.photo_retention_days),
   };
 }

@@ -9,7 +9,7 @@ export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 's
 
   const [items, photos, detections, quote, company, people] = await Promise.all([
     db.selectFrom('move_items')
-      .select(['id', 'label', 'category', 'seq', 'quantity', 'disposition', 'source', 'catalog_id',
+      .select(['id', 'label', 'category', 'seq', 'quantity', 'disposition', 'source', 'catalog_id', 'custom_name',
         'volume_m3_snapshot', 'catalog_snapshot'])
       .where('move_id', '=', move.id)
       .orderBy('category').orderBy('seq').execute(),
@@ -44,7 +44,8 @@ export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 's
     items: items.map(({ catalog_snapshot, ...i }) => {
       const c = itemCatalog(catalog, { ...i, catalog_snapshot });
       return {
-        ...i, name_en: c.name_en, name_ar: c.name_ar, size_class: c.size_class, variant: c.variant,
+        ...i, name_en: i.custom_name ?? c.name_en, name_ar: i.custom_name ?? c.name_ar,
+        catalog_name_en: c.name_en, catalog_name_ar: c.name_ar, size_class: c.size_class, variant: c.variant,
         volume_m3: c.volume_m3, weight_kg: c.weight_kg, fragile: c.fragile, dismantle_minutes: c.dismantle_minutes,
       };
     }),

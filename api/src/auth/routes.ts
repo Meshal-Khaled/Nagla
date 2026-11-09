@@ -58,7 +58,7 @@ export async function authRoutes(app: FastifyInstance, { db, config }: Deps) {
   app.get('/auth/me', { preHandler: requireAuth(secret) }, async (req) => {
     return db.selectFrom('users')
       .leftJoin('companies', 'companies.id', 'users.company_id')
-      .select(['users.id', 'users.name', 'users.email', 'users.role', 'users.company_id', 'companies.name_en as company_name'])
+      .select(['users.id', 'users.name', 'users.email', 'users.phone', 'users.role', 'users.company_id', 'companies.name_en as company_name'])
       .where('users.id', '=', currentUser(req).id).executeTakeFirstOrThrow();
   });
 

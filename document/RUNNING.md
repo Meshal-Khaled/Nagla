@@ -147,3 +147,20 @@ The real UI, merged from the friend's phone frontend (Arabic-first, English, dar
 
 App icon and splash: `node mobile/scripts/icons.cjs` regenerates the Android launcher icons (adaptive + legacy), the splash screens and the web icons from `app/assets/naqla-mark.png` (the mark cropped from the brand sheet). The background is `#F1F8F6`.
 
+## Native Android app (`android/`, Kotlin + Jetpack Compose)
+
+Replaces the web-view shell (`mobile/`) and the web UI (`app/`) on the phone. Same app id `com.nagla.app` and debug key, so it installs over the old app and the Google Android client still matches.
+
+```bash
+cd android && JAVA_HOME=~/.jdks/jdk-21.0.13+9 ./gradlew.bat assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+- API: `https://nagla.arc-homlab.com` (`-PapiBase=...` to change). No `adb reverse` needed.
+- Splash: the "Naqla Splash" logo reveal (4.6 s, tap to skip) after the system splash.
+- Booking: 1 date + addresses (location permission, search, map pin, saved addresses; structured fields fill themselves) → 2 photos (camera in the step or gallery), AI scan runs on Continue with the box/spyglass animation → 3 items (rename, quantity, Sell / Move / Donate slider) → 4 prices + confirm.
+- Drafts: a move is kept only if the customer saves it (unsaved drafts are deleted after 2 h). Drafts and finished moves can be archived.
+- Tracking: progress ring with the current stage + vertical stage timeline. Chat opens as soon as the move is confirmed. Pull to refresh everywhere; background refresh keeps the screen as it is (no flicker).
+- Profile: edit name and phone, stats per role, saved addresses, password, archive, help. Language and theme are in Settings (opened from the profile).
+- Maps: Hudhud via the API (`HUDHUD_SECRET_KEY` for search / reverse / short code, `HUDHUD_PUBLISHABLE_KEY` + `HUDHUD_MAP_ID` for the map). Without them the app uses the phone's geocoder and OpenStreetMap tiles.
+

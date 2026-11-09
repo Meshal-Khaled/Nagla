@@ -4,15 +4,21 @@ import { loadSettings } from '../quotes/inputs.js';
 
 /**
  * Privacy cleanup (plan risk 7):
- * - drafts never confirmed within `draft_ttl_hours` are deleted with their photos and items
+ * - unsaved drafts are deleted after `unsaved_draft_ttl_hours`, saved drafts `draft_ttl_hours` after their last change
  * - photos of finished moves are deleted `photo_retention_days` after the last event
  */
 export async function runCleanup({ db, storage }: Pick<Deps, 'db' | 'storage'>, now = new Date()) {
   const s = await loadSettings(db);
 
+  // unsaved drafts go quickly; drafts the customer saved (or archived) last `draft_ttl_hours` since their last change
+  const unsavedCutoff = new Date(now.getTime() - s.unsaved_draft_ttl_hours * 3600_000);
   const draftCutoff = new Date(now.getTime() - s.draft_ttl_hours * 3600_000);
   const drafts = await db.deleteFrom('moves')
-    .where('status', '=', 'draft').where('created_at', '<', draftCutoff)
+    .where('status', '=', 'draft')
+    .where((eb) => eb.or([
+      eb.and([eb('draft_saved', '=', false), eb('created_at', '<', unsavedCutoff)]),
+      eb.and([eb('draft_saved', '=', true), eb('updated_at', '<', draftCutoff)]),
+    ]))
     .returning('id').execute();
   // files after the rows are gone (cascade removed photos/items/detections/jobs)
   for (const d of drafts) await storage.removeMoveDir(d.id);

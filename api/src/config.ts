@@ -26,6 +26,12 @@ const Env = z.object({
   // where the web dev UI lands after Google sign-in, with ?code= to exchange
   APP_REDIRECT_URL: z.string().default('http://localhost:3000/dev/index.html'),
 
+  // Hudhud Maps (KSA): secret key for geocoding (server only); publishable key + map id for map tiles
+  HUDHUD_BASE_URL: z.string().url().default('https://b.hudhud.sa/v1'),
+  HUDHUD_SECRET_KEY: z.string().optional(),
+  HUDHUD_PUBLISHABLE_KEY: z.string().optional(),
+  HUDHUD_MAP_ID: z.string().optional(),
+
   // path to a Firebase service account JSON; push is logged only when unset
   FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
   WORKER_POLL_MS: z.coerce.number().int().default(1000),

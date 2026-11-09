@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
@@ -88,10 +90,19 @@ fun CustomerHome(nav: NavHostController, bottom: @Composable () -> Unit) {
                     Text(t("خطوة بخطوة، لبيتك الجديد.", "Step by step, to your new home."), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            item { DailyLineCard() }
             item {
                 HeroCard {
-                    Text(t("كل نقلة، بداية جديدة", "Every move, a new start"), style = MaterialTheme.typography.labelLarge, color = Brand.Lime)
-                    Text(t("من أول قرار،\nلين تستقر في الدار.", "From the first decision\nto settling in."), style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                    Text(t("نرتّبها معك", "Let’s plan it together"), style = MaterialTheme.typography.labelLarge, color = Brand.Lime)
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(t("جاهز لبدايتك الجديدة؟", "Ready for a fresh start?"),
+                                style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                            Text(t("صوّر أغراضك، قارن الشركات، وتابع نقلتك.", "Photograph your rooms, compare companies and follow your move."),
+                                style = MaterialTheme.typography.bodyMedium, color = Color(0xFFCBDFD9))
+                        }
+                        Icon(Icons.Outlined.Inventory2, null, Modifier.size(48.dp).rotate(-12f), tint = Brand.Lime.copy(alpha = 0.7f))
+                    }
                     PrimaryButton(t("ابدأ نقلة جديدة", "Start a new move"), { nav.navigate("book") }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Add)
                 }
             }
@@ -109,9 +120,26 @@ fun CustomerHome(nav: NavHostController, bottom: @Composable () -> Unit) {
                 item { Text(t("نكمل من وين وقفنا؟", "Pick up where you left off?"), style = MaterialTheme.typography.titleLarge) }
                 items(drafts.take(3), key = { it.id }) { m -> DraftRow(m) { nav.navigate("book/${m.id}") } }
             }
+            if (moves.isEmpty()) item {
+                SectionCard {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NaqlaIconTile(Icons.Outlined.PhotoCamera)
+                        Text(t("أول نقلة تبدأ بصورة", "Your first move starts with a photo"),
+                            style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+                        Text(t("جهّز صور غرفك، وراجع أغراضك قبل مقارنة الأسعار.", "Get your room photos ready, then review your inventory before comparing prices."),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
+                }
+            }
             val recent = moves.filter { it.status != "draft" && it.id != next?.id }.take(3)
             if (recent.isNotEmpty()) {
-                item { Text(t("آخر الطلبات", "Recent moves"), style = MaterialTheme.typography.titleLarge) }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(t("آخر النقلات", "Recent moves"), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                        TextButton({ nav.navigate("moves") { launchSingleTop = true } }) { Text(t("عرض الكل", "View all")) }
+                    }
+                }
                 items(recent, key = { "r" + it.id }) { m -> MoveCard(m, { nav.navigate("move/${m.id}") }) }
             }
         }
@@ -134,11 +162,12 @@ private fun NextMoveCard(m: MoveRow, onOpen: () -> Unit) {
         m.company_name?.let { Text(t("مع ", "With ") + it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
         if (m.assigned_agent_name != null) CheckChip(t("تم تعيين الفني", "Technician assigned")) else StatusBadge(m.status, m.current_stage)
         RouteLines(m.pickup_address, m.dropoff_address)
-        OutlinedButton(onOpen, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium,
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, Brand.Navy)) {
-            Text(t("تابع نقلتك", "Follow your move"), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge)
+        FilledTonalButton(onOpen, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
+            Text(t("تابع نقلتك", "Follow your move"))
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, tint = MaterialTheme.colorScheme.onSurface)
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null)
         }
     }
 }
@@ -155,9 +184,7 @@ private fun DraftRow(m: MoveRow, onOpen: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.background), Alignment.Center) {
-                Icon(Icons.Outlined.Edit, null, tint = MaterialTheme.colorScheme.onSurface)
-            }
+            NaqlaIconTile(Icons.Outlined.Description)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(t("نقلة", "Move") + (m.move_no?.let { " #$it" } ?: ""), style = MaterialTheme.typography.titleMedium)
@@ -280,8 +307,12 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
                         Spacer(Modifier.width(12.dp))
                         Text(stageName(stage), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
                     }
-                } else StageHeroCard(stage, b.tracking.progress?.percent ?: 0, clockText(b.tracking.events.lastOrNull()?.created_at),
-                    company = if (company) null else m.company?.let { t(it.name_ar ?: it.name_en, it.name_en) })
+                } else {
+                    val percent = b.tracking.progress?.percent ?: 0
+                    val updated = clockText(b.tracking.events.lastOrNull()?.created_at)
+                    if (company) StageHeroCard(stage, percent, updated)
+                    else CustomerTrackingSummary(stage, percent, updated, m.company?.let { t(it.name_ar ?: it.name_en, it.name_en) })
+                }
             }
             // company: accept / reject, the job sheet; anyone: cancel before the crew sets off
             if (company || (open && beforeCrew)) item {
@@ -348,7 +379,10 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
             item { ItemsSummary(m.items) }
         }
     }
-    if (confirmCancel) AlertDialog(
+    if (confirmCancel && !company) CancelReasonDialog(onDismiss = { confirmCancel = false }) { reason, note ->
+        confirmCancel = false; act { Api.cancel(id, reason, note) }
+    }
+    else if (confirmCancel) AlertDialog(
         onDismissRequest = { confirmCancel = false },
         title = { Text(t("إلغاء الطلب؟", "Cancel this move?")) },
         text = { Text(t("لا يمكن التراجع عن الإلغاء.", "This can't be undone.")) },

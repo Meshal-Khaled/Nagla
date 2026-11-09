@@ -16,6 +16,8 @@ const AddItem = z.object({
   catalog_id: z.uuid(),
   quantity: z.number().int().min(1).max(500).default(1),
   disposition: Disposition.default('keep'),
+  // the customer's own name for an item they add by hand ("Grandma's cabinet")
+  name: z.string().trim().max(100).optional(),
 });
 const PatchItem = z.object({
   catalog_id: z.uuid(),
@@ -60,7 +62,7 @@ export async function itemRoutes(app: FastifyInstance, deps: Deps) {
       const cat = catalogRow(catalog, body.catalog_id);
       return trx.insertInto('move_items').values({
         move_id: id, catalog_id: cat.id, category: cat.category, seq: await nextSeq(trx, id, cat.category),
-        quantity: body.quantity, disposition: body.disposition, source: 'manual',
+        quantity: body.quantity, disposition: body.disposition, source: 'manual', custom_name: body.name || null,
       }).returning(['id', 'label']).executeTakeFirstOrThrow();
     });
     reply.code(201);

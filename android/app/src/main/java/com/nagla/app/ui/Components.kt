@@ -18,6 +18,14 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,12 +60,20 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
-fun SectionCard(modifier: Modifier = Modifier, title: String? = null, icon: ImageVector? = null, action: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun SectionCard(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    icon: ImageVector? = null,
+    action: (@Composable () -> Unit)? = null,
+    highlighted: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().animateContentSize(tween(220)),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = androidx.compose.foundation.BorderStroke(if (highlighted) 2.dp else 1.dp,
+            if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (title != null) Row(verticalAlignment = Alignment.CenterVertically) {
@@ -137,7 +153,11 @@ fun ErrorNote(text: String?) {
 
 @Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false, icon: ImageVector? = null) {
-    Button(onClick = onClick, enabled = enabled && !busy, modifier = modifier.heightIn(min = 54.dp), shape = MaterialTheme.shapes.medium,
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow), label = "press")
+    Button(onClick = onClick, enabled = enabled && !busy, modifier = modifier.graphicsLayer { scaleX = scale; scaleY = scale }.heightIn(min = 54.dp),
+        shape = MaterialTheme.shapes.medium, interactionSource = interaction,
         colors = ButtonDefaults.buttonColors(containerColor = Brand.Lime, contentColor = Brand.Navy)) {
         if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Brand.Navy)
         else { if (icon != null) { Icon(icon, null); Spacer(Modifier.width(8.dp)) }; Text(text) }
@@ -251,15 +271,17 @@ fun DecisionSlider(value: String, onChange: (String) -> Unit, modifier: Modifier
         if (segment > 0) {
             val x = (offset.value * segment).roundToInt()
             val o = options[offset.value.roundToInt().coerceIn(0, 2)]
+            val colors = MaterialTheme.colorScheme
             Row(
-                Modifier.offset { IntOffset(x, 0) }
+                Modifier.clearAndSetSemantics { }.offset { IntOffset(x, 0) }
                     .width(with(androidx.compose.ui.platform.LocalDensity.current) { segment.toDp() }).fillMaxHeight().padding(4.dp)
-                    .clip(RoundedCornerShape(12.dp)).background(Brand.Navy),
+                    .clip(RoundedCornerShape(10.dp)).background(colors.surface)
+                    .border(1.dp, colors.primary, RoundedCornerShape(10.dp)),
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = colors.primary, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(6.dp))
-                Icon(Icons.Outlined.Check, null, Modifier.size(17.dp), tint = Color.White)
+                Icon(Icons.Outlined.Check, null, Modifier.size(17.dp), tint = colors.primary)
             }
         }
     }
@@ -270,54 +292,76 @@ fun DecisionSlider(value: String, onChange: (String) -> Unit, modifier: Modifier
 @Composable
 fun ScanAnimation(modifier: Modifier = Modifier) {
     val inf = rememberInfiniteTransition(label = "scan")
-    val lid by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "lid")
+    val lid by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(5180, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "lid")
     val sweep by inf.animateFloat(-1f, 1f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Reverse), label = "sweep")
     val navy = Brand.Navy
     val teal = Brand.Teal
     val lime = Brand.Lime
+    val side = lerp(Brand.Lime, Brand.Navy, 0.22f)   // the side face, a little darker
+    val inside = lerp(Brand.Lime, Brand.Navy, 0.55f) // the inside of the open box
     val glass = MaterialTheme.colorScheme.surface
-    Canvas(modifier.size(180.dp)) {
+    // a box drawn in three dimensions: front, side and the open top
+    Canvas(modifier.size(200.dp).clearAndSetSemantics { }) {
         val w = size.width
-        val boxW = w * 0.56f
-        val boxH = w * 0.34f
-        val left = (w - boxW) / 2
-        val top = w * 0.52f
-        // box body
-        drawRoundRect(lime, Offset(left, top), Size(boxW, boxH), CornerRadius(10f))
-        drawRoundRect(navy, Offset(left, top), Size(boxW, boxH), CornerRadius(10f), style = Stroke(5f))
-        drawLine(navy, Offset(w / 2, top), Offset(w / 2, top + boxH * 0.45f), 5f)
-        // two lid flaps opening outwards
-        val flap = boxW / 2
-        rotate(-80f * lid, Offset(left, top)) {
-            drawRoundRect(teal, Offset(left, top - 10f), Size(flap, 12f), CornerRadius(6f))
+        val left = w * 0.20f; val top = w * 0.50f
+        val bw = w * 0.48f; val bh = w * 0.28f   // front face
+        val dx = bw * 0.34f; val dy = bw * 0.24f // depth, drawn up and to the right
+        fun face(p: List<Offset>, fill: Color) {
+            val path = Path().apply { moveTo(p[0].x, p[0].y); p.drop(1).forEach { lineTo(it.x, it.y) }; close() }
+            drawPath(path, fill)
+            drawPath(path, navy, style = Stroke(4f, join = StrokeJoin.Round))
         }
-        rotate(80f * lid, Offset(left + boxW, top)) {
-            drawRoundRect(teal, Offset(left + boxW - flap, top - 10f), Size(flap, 12f), CornerRadius(6f))
-        }
+        val fl = Offset(left, top); val fr = Offset(left + bw, top)               // front top edge
+        val bl = Offset(left + dx, top - dy); val br = Offset(left + bw + dx, top - dy) // back top edge
+        // the opening (inside), then the side and the front
+        face(listOf(fl, bl, br, fr), fill = inside)
+        face(listOf(fr, br, Offset(br.x, br.y + bh), Offset(fr.x, fr.y + bh)), fill = side)
+        face(listOf(fl, fr, Offset(fr.x, fr.y + bh), Offset(fl.x, fl.y + bh)), fill = lime)
+        drawLine(navy, Offset(left + bw / 2, top), Offset(left + bw / 2, top + bh * 0.42f), 4f) // tape
+        // two flaps on the left and right edges of the opening, swinging out
+        val open = 0.25f + 0.75f * lid
+        val leftTip = Offset(lerpF(bw * 0.5f, -bw * 0.32f, open), lerpF(0f, -bh * 0.5f, open))
+        val rightTip = Offset(lerpF(-bw * 0.5f, bw * 0.32f, open), lerpF(0f, -bh * 0.5f, open))
+        face(listOf(fl, bl, bl + leftTip, fl + leftTip), fill = teal)
+        face(listOf(fr, br, br + rightTip, fr + rightTip), fill = teal)
+
         // the spyglass sweeping over the opening: lens centred on (gx, gy), handle attached to its rim
-        val r = w * 0.11f
-        val gx = w / 2 + sweep * boxW * 0.28f - r * 0.4f
-        val gy = top - r * 0.9f - lid * r * 0.4f
+        val r = w * 0.10f
+        val gx = left + bw / 2 + dx / 2 + sweep * bw * 0.26f - r * 0.4f
+        val gy = top - dy / 2 - r * 1.1f - lid * r * 0.35f
         translate(gx, gy) {
             val c = Offset.Zero
             val rim = r * 0.71f // cos 45° × r: where the handle leaves the lens
-            drawLine(navy, Offset(rim, rim), Offset(r * 1.75f, r * 1.75f), 12f, cap = StrokeCap.Round)
+            drawLine(navy, Offset(rim, rim), Offset(r * 1.75f, r * 1.75f), 11f, cap = StrokeCap.Round)
             drawCircle(glass, r, c)
             drawCircle(teal.copy(alpha = 0.25f), r * 0.72f, c)
-            drawCircle(navy, r, c, style = Stroke(7f))
-            // a small shine on the glass
+            drawCircle(navy, r, c, style = Stroke(6f))
             drawArc(Color.White.copy(alpha = 0.8f), 200f, 60f, false, Offset(-r * 0.6f, -r * 0.6f), Size(r * 1.2f, r * 1.2f), style = Stroke(4f, cap = StrokeCap.Round))
         }
     }
 }
 
+private fun lerpF(a: Float, b: Float, f: Float) = a + (b - a) * f
+
 @Composable
 fun StarsInput(value: Int, onChange: (Int) -> Unit) {
-    Row {
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         (1..5).forEach { n ->
-            IconButton(onClick = { onChange(n) }) {
+            val selected = n == value
+            val shape = MaterialTheme.shapes.small
+            Column(
+                Modifier.weight(1f).heightIn(min = 54.dp).clip(shape)
+                    .background(if (selected) colors.primaryContainer else colors.surface)
+                    .border(1.dp, if (selected) colors.primary else colors.outlineVariant, shape)
+                    .selectable(selected, role = Role.RadioButton) { onChange(n) }
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Icon(if (n <= value) Icons.Filled.Star else Icons.Outlined.StarOutline, t("$n من 5", "$n of 5"),
-                    tint = if (n <= value) Color(0xFFF5B301) else MaterialTheme.colorScheme.outline, modifier = Modifier.size(32.dp))
+                    tint = if (n <= value) colors.primary else colors.onSurfaceVariant, modifier = Modifier.size(21.dp))
+                Text("$n", Modifier.clearAndSetSemantics { }, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

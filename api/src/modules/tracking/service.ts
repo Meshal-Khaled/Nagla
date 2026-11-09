@@ -12,6 +12,8 @@ export interface StageEventInput {
   actorId: string | null;
   idempotencyKey: string;
   photo?: Buffer;
+  /** only for `cancelled`: a reason code and the customer's own words */
+  cancel?: { reason?: string; note?: string };
 }
 
 export type StageEventResult = 'created' | 'duplicate' | 'noop';
@@ -75,7 +77,11 @@ export async function applyStageEvent(deps: Pick<Deps, 'db' | 'storage' | 'notif
       const ended = END_STAGES.includes(input.stage);
       await trx.updateTable('moves').set({
         current_stage: input.stage,
-        ...(input.stage === 'cancelled' ? { status: 'cancelled' as const } : {}),
+        ...(input.stage === 'cancelled' ? {
+          status: 'cancelled' as const,
+          cancel_reason: input.cancel?.reason ?? null,
+          cancel_note: input.cancel?.note || null,
+        } : {}),
         // the agent link stops working once the move is over
         ...(ended ? { agent_token_expires_at: new Date() } : {}),
         updated_at: new Date(),

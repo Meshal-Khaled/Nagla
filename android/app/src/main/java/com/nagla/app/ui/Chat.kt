@@ -41,7 +41,10 @@ fun ChatScreen(nav: NavHostController, moveId: String) {
                     val mine = m.sender_id == me.id
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                         Column(
-                            Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(18.dp))
+                            Modifier.widthIn(max = 300.dp).clip(
+                                RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp,
+                                    bottomStart = if (mine) 15.dp else 4.dp, bottomEnd = if (mine) 4.dp else 15.dp)
+                            )
                                 .background(if (mine) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                         ) {
@@ -55,7 +58,7 @@ fun ChatScreen(nav: NavHostController, moveId: String) {
             ErrorNote(error ?: loader.error)
             Surface(tonalElevation = 3.dp) {
                 Row(Modifier.fillMaxWidth().padding(10.dp).navigationBarsPadding(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(text, { text = it.take(2000) }, Modifier.weight(1f), placeholder = { Text(t("اكتب رسالة", "Write a message")) }, maxLines = 4)
+                    OutlinedTextField(text, { text = it.take(2000) }, Modifier.weight(1f), shape = MaterialTheme.shapes.medium, placeholder = { Text(t("اكتب رسالة", "Write a message")) }, maxLines = 4)
                     Spacer(Modifier.width(8.dp))
                     FilledIconButton(
                         onClick = {

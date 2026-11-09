@@ -32,6 +32,13 @@ async function resolveActor(deps: Deps, req: FastifyRequest, moveId: string): Pr
 }
 
 /** JSON body, or multipart with fields + optional `photo` file (agent "Loaded" + photo). */
+export const CANCEL_REASONS = ['changed_plans', 'other', 'found_another_company', 'price_too_high', 'wrong_date', 'booked_by_mistake'] as const;
+const CancelBody = z.object({
+  idempotency_key: z.string().min(8).max(100).optional(),
+  reason: z.enum(CANCEL_REASONS).optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
 export async function readEventBody(req: FastifyRequest) {
   if (!req.isMultipart()) return { ...EventBody.parse(req.body), photo: undefined };
   const fields: Record<string, string> = {};
@@ -62,9 +69,10 @@ export async function trackingRoutes(app: FastifyInstance, deps: Deps) {
     const { id } = IdParam.parse(req.params);
     const user = currentUser(req);
     await loadMove(db, id, user);
-    const key = z.object({ idempotency_key: z.string().min(8).max(100).optional() }).parse(req.body ?? {}).idempotency_key;
+    const body = CancelBody.parse(req.body ?? {});
     const result = await applyStageEvent(deps, {
-      moveId: id, stage: 'cancelled', actor: user.role as Actor, actorId: user.id, idempotencyKey: key ?? `cancel:${id}`,
+      moveId: id, stage: 'cancelled', actor: user.role as Actor, actorId: user.id, idempotencyKey: body.idempotency_key ?? `cancel:${id}`,
+      cancel: { reason: body.reason, note: body.note },
     });
     return { result, tracking: await trackingView(deps, id) };
   });

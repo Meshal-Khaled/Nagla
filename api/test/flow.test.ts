@@ -56,6 +56,17 @@ describe('detection job', () => {
     expect(items.map((i: { label: string; source: string }) => `${i.label}:${i.source}`).sort()).toEqual(['couch_2:manual', 'couch_3:ai']);
   });
 
+  it('adds a manual item under the customer’s own name', async () => {
+    const { token, moveId } = await draftWithItems(ctx);
+    const couch = (await get('/catalog?q=couch', token))[0];
+    const res = await ctx.app.inject({ method: 'POST', url: `/moves/${moveId}/items`, headers: bearer(token),
+      payload: { catalog_id: couch.id, name: '  Grandma sofa  ', quantity: 2 } });
+    expect(res.statusCode).toBe(201);
+    const item = res.json().move.items.find((i: { id: string }) => i.id === res.json().item.id);
+    expect(item).toMatchObject({ custom_name: 'Grandma sofa', name_en: 'Grandma sofa', name_ar: 'Grandma sofa', quantity: 2, source: 'manual' });
+    expect(item.catalog_name_en).toBe(couch.name_en);
+  });
+
   it('marks the job failed and writes nothing when the AI fails', async () => {
     const token = await login(ctx.app, CUSTOMER_EMAIL);
     const moveId = await createMove(ctx.app, token);

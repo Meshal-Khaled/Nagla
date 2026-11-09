@@ -144,13 +144,18 @@ object Api {
     suspend fun job(id: String): Job = get("/jobs/$id")
     suspend fun aiRuns(moveId: String): List<AiRun> = get("/moves/$moveId/ai-runs")
     suspend fun catalog(q: String): List<CatalogRow> = get("/catalog" + if (q.isBlank()) "" else "?q=${enc(q)}")
-    suspend fun addItem(moveId: String, catalogId: String) { call("POST", "/moves/$moveId/items", obj("catalog_id" to catalogId).body()) }
+    suspend fun addItem(moveId: String, catalogId: String, name: String? = null, quantity: Int = 1) {
+        // optional fields are left out when empty (the API takes a missing field, not null)
+        val body = obj(*listOfNotNull("catalog_id" to catalogId, "quantity" to quantity, name?.trim()?.takeIf { it.isNotEmpty() }?.let { "name" to it }).toTypedArray())
+        call("POST", "/moves/$moveId/items", body.body())
+    }
     suspend fun patchItem(id: String, body: JsonObject): MoveDetail = json.decodeFromString(call("PATCH", "/items/$id", body.body()))
     suspend fun deleteItem(id: String): MoveDetail = json.decodeFromString(call("DELETE", "/items/$id"))
     suspend fun quotes(id: String): Offers = get("/moves/$id/quotes")
     suspend fun confirm(id: String, companyId: String) { call("POST", "/moves/$id/confirm", obj("company_id" to companyId).body()) }
     suspend fun tracking(id: String): Tracking = get("/moves/$id/tracking")
-    suspend fun cancel(id: String) = postUnit("/moves/$id/cancel", obj("idempotency_key" to key()))
+    suspend fun cancel(id: String, reason: String? = null, note: String? = null) =
+        postUnit("/moves/$id/cancel", obj(*listOfNotNull("idempotency_key" to key(), reason?.let { "reason" to it }, note?.let { "note" to it }).toTypedArray()))
     suspend fun messages(id: String): List<Message> = get("/moves/$id/messages")
     suspend fun sendMessage(id: String, body: String) = postUnit("/moves/$id/messages", obj("body" to body))
     suspend fun ratings(id: String): List<Rating> = get("/moves/$id/ratings")

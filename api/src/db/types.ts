@@ -179,6 +179,8 @@ export interface MoveRatings {
 }
 
 export interface Moves {
+  cancel_note: string | null;
+  cancel_reason: string | null;
   agent_token_expires_at: Timestamp | null;
   agent_token_hash: string | null;
   archived_at: Timestamp | null;

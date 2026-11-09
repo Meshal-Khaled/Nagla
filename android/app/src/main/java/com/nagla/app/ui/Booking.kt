@@ -6,6 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +20,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -34,6 +43,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -241,7 +256,11 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
             Stepper(step) { i -> if (i < step && !scanning) step = i }
             error?.let { Box(Modifier.padding(horizontal = 16.dp)) { ErrorNote(it) } }
             Box(Modifier.weight(1f)) {
-                AnimatedContent(step, label = "step") { s ->
+                AnimatedContent(step, transitionSpec = {
+                    val dir = if (targetState > initialState) AnimatedContentTransitionScope.SlideDirection.Start else AnimatedContentTransitionScope.SlideDirection.End
+                    (fadeIn(tween(220)) + slideIntoContainer(dir, tween(300)) { it / 6 }) togetherWith
+                        (fadeOut(tween(150)) + slideOutOfContainer(dir, tween(300)) { it / 6 })
+                }, label = "step") { s ->
                     when (s) {
                         0 -> DetailsStep(pickup, dropoff, saved, dateFrom, { dateFrom = it }, dateTo, { dateTo = it }, time, { time = it }, notes, { notes = it })
                         1 -> PhotosStep(move, scanning, { uploading = it }, onChanged = { scope.launch { runCatching { refresh() } } }, onError = { error = it })
@@ -319,16 +338,37 @@ private fun StepBar(
 
 @Composable
 private fun Stepper(step: Int, onPick: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        STEPS.forEachIndexed { i, (ar, en) ->
-            val done = i < step
-            Column(Modifier.weight(1f).clickable(enabled = done, role = Role.Tab, onClickLabel = t("العودة لهذه الخطوة", "Go back to this step")) { onPick(i) }.padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
-                    .background(when { done -> Brand.Teal; i == step -> Brand.Navy; else -> MaterialTheme.colorScheme.outlineVariant }))
-                Spacer(Modifier.height(8.dp))
-                Text((if (done) "✓ " else num(i + 1) + " ") + t(ar, en), style = MaterialTheme.typography.labelSmall, maxLines = 1,
-                    fontWeight = if (i == step) FontWeight.Bold else FontWeight.Normal,
-                    color = if (i == step) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        color = colors.surface, shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, colors.outlineVariant),
+    ) {
+        Row(Modifier.padding(5.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            STEPS.forEachIndexed { i, (ar, en) ->
+                val done = i < step
+                val current = i == step
+                Column(
+                    Modifier.weight(if (current) 1.2f else 1f).heightIn(min = 48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(if (current) colors.primaryContainer else colors.surface)
+                        .clickable(enabled = done, role = Role.Tab, onClickLabel = t("العودة لهذه الخطوة", "Go back to this step")) { onPick(i) }
+                        .padding(vertical = 5.dp, horizontal = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Surface(shape = CircleShape, modifier = Modifier.size(25.dp),
+                        color = if (done || current) colors.primary else colors.surfaceVariant,
+                        contentColor = if (done || current) colors.onPrimary else colors.onSurfaceVariant) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (done) Icon(Icons.Outlined.Check, null, Modifier.size(15.dp))
+                            else Text(num(i + 1), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    Text(t(ar, en), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center,
+                        fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
+                        color = if (current) colors.onPrimaryContainer else colors.onSurfaceVariant)
+                }
             }
         }
     }
@@ -433,9 +473,12 @@ private fun PhotosStep(move: MoveDetail?, scanning: Boolean, setUploading: (Bool
 
     if (scanning) {
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            ScanAnimation()
+            Surface(Modifier.size(150.dp), shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Box(contentAlignment = Alignment.Center) { ScanAnimation() }
+            }
             Spacer(Modifier.height(16.dp))
-            Text(t("نفتح الصناديق ونتفقد أغراضك…", "Opening the boxes and checking your things…"), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+            Text(t("نتعرّف على أغراضك", "Analyzing your belongings"), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             Text(t("يتعرف الذكاء الاصطناعي على الأثاث في كل غرفة. قد يستغرق دقيقة.", "AI is recognising the furniture in each room. This can take a minute."),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
@@ -485,10 +528,29 @@ private fun PhotosStep(move: MoveDetail?, scanning: Boolean, setUploading: (Bool
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PrimaryButton(t("التقاط صورة", "Take a photo"), { takePhoto(r) }, Modifier.weight(1f), busy = uploadingRoom == r, enabled = uploadingRoom == null, icon = Icons.Outlined.PhotoCamera)
-                    OutlinedButton({ pickPhotos(r) }, Modifier.weight(1f).heightIn(min = 52.dp), enabled = uploadingRoom == null, shape = MaterialTheme.shapes.medium) {
-                        Icon(Icons.Outlined.PhotoLibrary, null); Spacer(Modifier.width(6.dp)); Text(t("من المعرض", "Gallery"), maxLines = 1)
+                val colors = MaterialTheme.colorScheme
+                Column(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(colors.background)
+                        .drawBehind {
+                            val stroke = 1.dp.toPx()
+                            drawRoundRect(colors.primary, topLeft = Offset(stroke, stroke),
+                                size = Size(size.width - 2 * stroke, size.height - 2 * stroke),
+                                cornerRadius = CornerRadius(17.dp.toPx()),
+                                style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))))
+                        }.padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null, tint = colors.primary)
+                    Text(t("أضف صور الغرفة", "Add room photos"), style = MaterialTheme.typography.titleMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PrimaryButton(t("التقاط صورة", "Take a photo"), { takePhoto(r) }, Modifier.weight(1f),
+                            busy = uploadingRoom == r, enabled = uploadingRoom == null)
+                        OutlinedButton({ pickPhotos(r) }, Modifier.weight(1f).heightIn(min = 54.dp),
+                            enabled = uploadingRoom == null, shape = MaterialTheme.shapes.medium,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                            Text(t("من المعرض", "Gallery"), textAlign = TextAlign.Center)
+                        }
                     }
                 }
             }
@@ -540,19 +602,20 @@ private fun AddRoomDialog(existing: List<String>, onDismiss: () -> Unit, onAdd: 
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(t("اختر نوع الغرفة", "Choose the type of room"), style = MaterialTheme.typography.bodyMedium)
-                LazyVerticalGrid(GridCells.Fixed(3), Modifier.heightIn(max = 300.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyVerticalGrid(GridCells.Fixed(2), Modifier.heightIn(max = 252.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(ROOM_TEMPLATES, key = { it.key }) { tp ->
                         val sel = picked == tp
                         Surface(
                             Modifier.clip(MaterialTheme.shapes.medium).selectable(selected = sel, role = Role.RadioButton) { picked = tp; name = defaultName(tp) },
                             shape = MaterialTheme.shapes.medium,
-                            color = if (sel) Brand.Lime else MaterialTheme.colorScheme.surfaceVariant,
-                            border = if (sel) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                            color = if (sel) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                         ) {
-                            Column(Modifier.padding(vertical = 10.dp, horizontal = 4.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(tp.icon, null, tint = if (sel) Brand.Navy else MaterialTheme.colorScheme.primary)
-                                Text(t(tp.ar, tp.en), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2,
-                                    color = if (sel) Brand.Navy else MaterialTheme.colorScheme.onSurface)
+                            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(8.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(tp.icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                Text(t(tp.ar, tp.en), style = MaterialTheme.typography.labelMedium,
+                                    color = if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
                             }
                         }
                     }
@@ -576,8 +639,10 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
     val scope = rememberCoroutineScope()
     var renaming by remember { mutableStateOf<com.nagla.app.data.Item?>(null) }
     var catalog by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf<AddDraft?>(null) }
     var selected by remember { mutableStateOf<String?>(null) }
     var roomFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var search by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     val m = move ?: return
     fun patch(id: String, body: JsonObject) = scope.launch { runCatching { onMove(Api.patchItem(id, body)) }.onFailure { onError(errorText(it)) } }
@@ -588,9 +653,14 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
     val numbers = m.items.filter { it.id in firstSighting }.mapIndexed { i, it -> it.id to i + 1 }.toMap()
     val roomOf = firstSighting.mapValues { it.value.first.room }
     val rooms = m.items.mapNotNull { roomOf[it.id] }.distinct()
-    val shown = m.items.filter { roomFilter == null || roomOf[it.id] == roomFilter }
+    val roomItems = m.items.filter { roomFilter == null || roomOf[it.id] == roomFilter }
+    val query = search.trim()
+    val shown = if (query.isEmpty()) roomItems else roomItems.filter { item ->
+        listOfNotNull(item.custom_name, item.name_ar, item.name_en).any { it.contains(query, ignoreCase = true) }
+    }
     val reviewPhotos = m.photos.filter { p -> p.detections.any { it.item_id in numbers } && (roomFilter == null || p.room == roomFilter) }
-    val headerCount = 3 + if (reviewPhotos.isNotEmpty()) 1 else 0
+    val reviewIndex = 4
+    val firstItemIndex = reviewIndex + if (reviewPhotos.isNotEmpty()) 1 else 0
 
     LazyColumn(state = list, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -605,6 +675,14 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
                     "Check the scan results. Only \"Move\" items are priced; Sell and Donate keep your list tidy."), style = MaterialTheme.typography.bodyMedium)
             }
         }
+        item {
+            OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), singleLine = true,
+                shape = MaterialTheme.shapes.medium, label = { Text(t("ابحث في الأغراض", "Search your inventory")) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                trailingIcon = {
+                    if (search.isNotEmpty()) IconButton({ search = "" }) { Icon(Icons.Outlined.Close, t("مسح البحث", "Clear search")) }
+                })
+        }
         // rooms: All · Living room · Bedroom …
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -615,11 +693,19 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
         if (reviewPhotos.isNotEmpty()) item(key = "review") {
             PhotoReviewCard(reviewPhotos, numbers, selected) { id ->
                 selected = id
-                val idx = shown.indexOfFirst { it.id == id }
-                if (idx >= 0) scope.launch { list.animateScrollToItem(headerCount + idx) }
+                val index = shown.indexOfFirst { it.id == id }
+                if (index >= 0) scope.launch { list.animateScrollToItem(firstItemIndex + index) }
+                else {
+                    val roomIndex = roomItems.indexOfFirst { it.id == id }
+                    if (roomIndex >= 0) {
+                        search = ""
+                        list.requestScrollToItem(firstItemIndex + roomIndex)
+                    }
+                }
             }
         }
         if (m.items.isEmpty()) item { EmptyState(t("لم نجد أغراضاً", "No items found"), t("أضفها من الكتالوج أو أضف صوراً أوضح.", "Add them from the catalog or add clearer photos.")) }
+        else if (query.isNotEmpty() && shown.isEmpty()) item { EmptyState(t("لا توجد أغراض مطابقة", "No matching items"), icon = Icons.Outlined.Search) }
         itemsIndexed(shown, key = { _, it -> it.id }) { _, i ->
             val sighting = firstSighting[i.id]
             val isSel = selected == i.id
@@ -627,17 +713,15 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
                 Modifier.clip(MaterialTheme.shapes.large).clickable(onClickLabel = t("إظهار القطعة على الصورة", "Show the item on its photo")) {
                     selected = if (isSel) null else i.id
                     // show the item on its photo
-                    if (!isSel && sighting != null && reviewPhotos.isNotEmpty()) scope.launch { list.animateScrollToItem(3) }
-                }
-                    .then(if (isSel) Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f), MaterialTheme.shapes.large) else Modifier),
+                    if (!isSel && sighting != null && reviewPhotos.isNotEmpty()) scope.launch { list.animateScrollToItem(reviewIndex) }
+                },
+                highlighted = isSel,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box {
                         if (sighting != null && sighting.second.box != null)
                             PhotoCrop(Api.url(sighting.first.url), sighting.first.width ?: 1200, sighting.first.height ?: 1600, sighting.second.box!!, 64)
-                        else Box(Modifier.size(64.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.background), Alignment.Center) {
-                            Icon(Icons.Outlined.Chair, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        else NaqlaIconTile(Icons.Outlined.Chair, size = 56)
                         numbers[i.id]?.let { NumberBadge(it, isSel, Modifier.align(Alignment.TopStart).offset((-4).dp, (-4).dp)) }
                     }
                     Spacer(Modifier.width(12.dp))
@@ -687,16 +771,61 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
                 }
             })
     }
-    if (catalog) CatalogSheet(onDismiss = { catalog = false }) { row ->
-        catalog = false
-        scope.launch { runCatching { Api.addItem(m.id, row.id); onMove(Api.move(m.id)) }.onFailure { onError(errorText(it)) } }
+    if (catalog) CatalogSheet(onDismiss = { catalog = false }) { draft -> catalog = false; adding = draft }
+    adding?.let { d ->
+        AddItemDialog(d, onDismiss = { adding = null }) { row, name, qty ->
+            adding = null
+            scope.launch { runCatching { Api.addItem(m.id, row.id, name, qty); onMove(Api.move(m.id)) }.onFailure { onError(errorText(it)) } }
+        }
     }
+}
+
+/** an item to add: a catalog row (or the "other" sizes for an item of your own) and the name to start from */
+private data class AddDraft(val row: CatalogRow, val name: String, val sizes: List<CatalogRow> = emptyList())
+
+/** add an item by hand: your own name for it (optional for catalog items, required for your own), and how many */
+@Composable
+private fun AddItemDialog(d: AddDraft, onDismiss: () -> Unit, onAdd: (CatalogRow, String?, Int) -> Unit) {
+    var name by rememberSaveable { mutableStateOf(d.name) }
+    var row by remember { mutableStateOf(d.row) }
+    var qty by rememberSaveable { mutableIntStateOf(1) }
+    val own = d.sizes.isNotEmpty()
+    val catalogName = t(row.name_ar, row.name_en)
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text(if (own) t("قطعة باسمك", "Your own item") else t("إضافة قطعة", "Add an item")) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(name, { name = it.take(100) }, Modifier.fillMaxWidth(), singleLine = true, shape = MaterialTheme.shapes.medium,
+                    label = { Text(t("اسم القطعة", "Item name")) }, placeholder = { Text(if (own) t("مثال: دولاب جدتي", "e.g. Grandma's cabinet") else catalogName) },
+                    supportingText = { Text(if (own) t("اكتب الاسم الذي تعرفها به.", "The name you know it by.") else t("اختياري: اتركه فارغاً لاسم الكتالوج.", "Optional: leave it empty for the catalog name.")) })
+                if (own) {
+                    Text(t("حجمها تقريباً", "About how big is it?"), style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        d.sizes.forEach { s ->
+                            FilterChip(row.id == s.id, { row = s }, { Text(truckName(s.size_class)) },
+                                Modifier.semantics { role = Role.RadioButton }.heightIn(min = 48.dp))
+                        }
+                    }
+                    Text(t("الحجم: ", "Volume: ") + "%.2f m³".format(row.volume_m3), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else Text(t("من الكتالوج: ", "From the catalog: ") + catalogName + " · " + "%.2f m³".format(row.volume_m3),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(t("الكمية", "Quantity"), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    QuantityStepper(qty, onMinus = { if (qty > 1) qty-- }, onPlus = { if (qty < 500) qty++ })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton({ onAdd(row, name.trim().takeIf { it.isNotEmpty() && it != catalogName }, qty) }, enabled = !own || name.isNotBlank()) { Text(t("إضافة", "Add")) }
+        },
+        dismissButton = { TextButton(onDismiss) { Text(t("إلغاء", "Cancel")) } })
 }
 
 @Composable
 private fun RoomChip(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(selected, onClick, { Text(label) }, shape = RoundedCornerShape(50),
-        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Brand.Navy, selectedLabelColor = androidx.compose.ui.graphics.Color.White),
+        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer),
         border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected, borderColor = MaterialTheme.colorScheme.outlineVariant))
 }
 
@@ -709,20 +838,33 @@ fun NumberBadge(n: Int, selected: Boolean, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CatalogSheet(onDismiss: () -> Unit, onPick: (CatalogRow) -> Unit) {
+private fun CatalogSheet(onDismiss: () -> Unit, onPick: (AddDraft) -> Unit) {
     var q by remember { mutableStateOf("") }
-    val loader = rememberLoader(q) { if (q.length == 1) emptyList() else Api.catalog(q).filter { it.category != "other" || q.isNotBlank() }.take(50) }
+    val loader = rememberLoader(q) { if (q.length == 1) emptyList() else Api.catalog(q).filter { it.category != "other" }.take(50) }
+    // the "other" rows (small / medium / large): for an item that isn't in the catalog, under your own name
+    val others = rememberLoader { Api.catalog("").filter { it.category == "other" }.sortedBy { it.volume_m3 } }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).fillMaxHeight(0.8f)) {
             OutlinedTextField(q, { q = it }, Modifier.fillMaxWidth(), singleLine = true, leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 placeholder = { Text(t("ابحث: كنبة، سرير، ثلاجة…", "Search: sofa, bed, fridge…")) })
             LazyColumn {
+                val sizes = others.data.orEmpty()
+                if (sizes.isNotEmpty()) item(key = "own") {
+                    val typed = q.trim()
+                    ListItem(
+                        headlineContent = { Text(if (typed.length >= 2) t("أضف «$typed» باسمك", "Add \"$typed\" as your own item") else t("قطعة غير موجودة؟ أضفها باسمك", "Not in the list? Add it under your own name"), fontWeight = FontWeight.SemiBold) },
+                        supportingContent = { Text(t("تختار حجمها في الخطوة التالية", "You pick its size next")) },
+                        leadingContent = { Icon(Icons.Outlined.EditNote, null, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.clickable { onPick(AddDraft(sizes[sizes.size / 2], typed, sizes)) },
+                    )
+                    HorizontalDivider()
+                }
                 items(loader.data.orEmpty(), key = { it.id }) { r ->
                     ListItem(
                         headlineContent = { Text(t(r.name_ar, r.name_en)) },
                         supportingContent = { Text(r.variant + " · %.2f m³".format(r.volume_m3)) },
                         trailingContent = { Icon(Icons.Outlined.AddCircleOutline, t("إضافة", "Add"), tint = MaterialTheme.colorScheme.primary) },
-                        modifier = Modifier.clickable { onPick(r) },
+                        modifier = Modifier.clickable { onPick(AddDraft(r, "")) },
                     )
                     HorizontalDivider()
                 }
@@ -737,6 +879,7 @@ private fun CatalogSheet(onDismiss: () -> Unit, onPick: (CatalogRow) -> Unit) {
 private fun OffersStep(moveId: String, move: MoveDetail?, chosen: Offer?, onChoose: (Offer) -> Unit) {
     val loader = rememberLoader(moveId) { Api.quotes(moveId) }
     val offers = loader.data?.offers.orEmpty()
+    val lowestPrice = offers.minOfOrNull { it.price_halalas }
     LaunchedEffect(offers) { if (offers.isNotEmpty() && offers.none { it.company_id == chosen?.company_id }) onChoose(offers.first()) }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -761,7 +904,9 @@ private fun OffersStep(moveId: String, move: MoveDetail?, chosen: Offer?, onChoo
             }
         }
         if (loader.data != null && offers.isEmpty()) item { EmptyState(t("لا توجد عروض", "No offers"), t("حدد قطعة واحدة على الأقل للنقل.", "Mark at least one item as Move.")) }
-        items(offers, key = { it.company_id }) { o -> OfferCard(o, o.company_id == chosen?.company_id) { onChoose(o) } }
+        items(offers, key = { it.company_id }) { o ->
+            OfferCard(o, o.company_id == chosen?.company_id, o.price_halalas == lowestPrice) { onChoose(o) }
+        }
         if (offers.isNotEmpty()) item {
             Text(t("المدة تقديرية لتنفيذ النقل، وليست موعد وصول.", "The time is an estimate of the job, not an arrival time."),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -770,30 +915,32 @@ private fun OffersStep(moveId: String, move: MoveDetail?, chosen: Offer?, onChoo
 }
 
 @Composable
-private fun OfferCard(o: Offer, selected: Boolean, onClick: () -> Unit) {
+private fun OfferCard(o: Offer, selected: Boolean, lowest: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     Card(
-        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(onClick = onClick), shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Brand.TealDark else MaterialTheme.colorScheme.outlineVariant),
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).selectable(selected, role = Role.RadioButton, onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (selected) Box(Modifier.size(24.dp).clip(CircleShape).background(Brand.TealDark), Alignment.Center) {
-                    Icon(Icons.Outlined.Check, null, Modifier.size(16.dp), tint = androidx.compose.ui.graphics.Color.White)
-                } else Box(Modifier.size(24.dp).clip(CircleShape).border(2.dp, MaterialTheme.colorScheme.outline, CircleShape))
-                Spacer(Modifier.width(10.dp))
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                NaqlaIconTile(Icons.Outlined.LocalShipping)
                 Column(Modifier.weight(1f)) {
                     Text(o.company_name, style = MaterialTheme.typography.titleLarge)
                     val sub = listOfNotNull(o.company_city, o.google_rating?.let { "★ %.1f".format(it) + t(" على Google", " on Google") }).joinToString(" · ")
                     if (sub.isNotBlank()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (selected) Surface(color = MaterialTheme.colorScheme.background, shape = RoundedCornerShape(8.dp)) {
-                    Text(t("اختيارك", "Your pick"), Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = Brand.TealDark)
-                }
+                RadioButton(selected = selected, onClick = null)
             }
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(sar(o.price_halalas), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-                Text(t("إجمالي العرض", "Total"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                val labels = listOfNotNull(
+                    if (lowest) t("أقل سعر", "Lowest price") else null,
+                    if (selected) t("اختيارك", "Your pick") else null,
+                )
+                if (labels.isNotEmpty()) Text(labels.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = colors.primary)
+                Text(sar(o.price_halalas), style = MaterialTheme.typography.headlineMedium, color = colors.primary)
+                Text(t("إجمالي العرض", "Total"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row {

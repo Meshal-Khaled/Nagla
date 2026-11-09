@@ -99,32 +99,34 @@ fun AuthScreen() {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         // the form sits in the middle of the screen; it scrolls when the keyboard or a large font needs the room
-        BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.TopCenter) {
             Column(
-                Modifier.fillMaxWidth().heightIn(min = maxHeight).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+                Modifier.widthIn(max = 460.dp).fillMaxWidth().heightIn(min = maxHeight).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(if (register) 14.dp else 10.dp, Alignment.CenterVertically),
             ) {
                 // the lockup has the sheet's light background: give it a matching card so it looks right in dark mode too
                 Surface(color = Brand.Splash, shape = MaterialTheme.shapes.large, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                    Image(painterResource(R.drawable.logo_lockup), "نقلة Naqla", Modifier.width(200.dp).padding(horizontal = 14.dp, vertical = 8.dp))
+                    Image(painterResource(R.drawable.logo_lockup), "نقلة Naqla",
+                        Modifier.width(if (register) 200.dp else 132.dp).padding(horizontal = 8.dp, vertical = 4.dp))
                 }
+                if (!register) NaqlaWelcomeIntro()
                 Text(
                     if (register) t("إنشاء حساب", "Create an account") else t("أهلاً بعودتك", "Welcome back"),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = if (register) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
                 )
-                if (register) OutlinedTextField(name, { name = it }, label = { Text(t("الاسم", "Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                if (register) OutlinedTextField(name, { name = it }, shape = MaterialTheme.shapes.medium, label = { Text(t("الاسم", "Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Outlined.Person, null) })
-                OutlinedTextField(email, { email = it }, label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(email, { email = it }, shape = MaterialTheme.shapes.medium, label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Outlined.Email, null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
-                OutlinedTextField(password, { password = it }, label = { Text(t("كلمة المرور", "Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                OutlinedTextField(password, { password = it }, shape = MaterialTheme.shapes.medium, label = { Text(t("كلمة المرور", "Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Outlined.Lock, null) },
                     trailingIcon = { IconButton({ showPw = !showPw }) { Icon(if (showPw) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (showPw) t("إخفاء كلمة المرور", "Hide password") else t("إظهار كلمة المرور", "Show password")) } },
                     visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = if (register) ImeAction.Next else ImeAction.Done),
                     supportingText = if (register) ({ Text(t("٨ أحرف على الأقل", "At least 8 characters")) }) else null)
                 val mismatch = register && confirm.isNotEmpty() && confirm != password
-                if (register) OutlinedTextField(confirm, { confirm = it }, label = { Text(t("تأكيد كلمة المرور", "Confirm password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                if (register) OutlinedTextField(confirm, { confirm = it }, shape = MaterialTheme.shapes.medium, label = { Text(t("تأكيد كلمة المرور", "Confirm password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Outlined.Lock, null) },
                     visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),

@@ -47,7 +47,6 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
             ProfileData(s.await(), tp.await())
         }
     }
-    var help by remember { mutableStateOf(false) }
     AppScreen(t("الملف الشخصي", "Profile"), bottomBar = bottom, actions = {
         IconButton({ nav.navigate("settings") }) { Icon(Icons.Outlined.Settings, t("الإعدادات", "Settings")) }
     }) { pad ->
@@ -55,15 +54,19 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
             // the account card: who you are + everything about the account (details, password)
             item {
                 SectionCard {
-                    Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { nav.navigate("account") }, verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(64)
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(me.name, style = MaterialTheme.typography.titleLarge)
-                            Text(roleName(me.role) + (me.company_name?.let { " · $it" } ?: ""), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                            Text(me.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                            .clickable(onClickLabel = t("المعلومات الشخصية", "Personal info")) { nav.navigate("account") }.padding(6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        NaqlaIconTile(Icons.Outlined.Person, size = 72)
+                        Text(me.name, style = MaterialTheme.typography.titleLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text(roleName(me.role) + (me.company_name?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text(me.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     MenuRow(Icons.Outlined.Badge, t("المعلومات الشخصية", "Personal info"),
@@ -83,7 +86,10 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
                 SectionCard {
                     if (me.role == "customer") MenuRow(Icons.Outlined.Bookmarks, t("العناوين المحفوظة", "Saved addresses")) { nav.navigate("addresses") }
                     MenuRow(Icons.Outlined.Settings, t("الإعدادات: اللغة والمظهر", "Settings: language & theme")) { nav.navigate("settings") }
-                    MenuRow(Icons.AutoMirrored.Outlined.HelpOutline, t("المساعدة والأسئلة الشائعة", "Help & FAQ")) { help = true }
+                    MenuRow(Icons.AutoMirrored.Outlined.HelpOutline, t("المساعدة والأسئلة الشائعة", "Help & FAQ")) { nav.navigate("help") }
+                    MenuRow(Icons.Outlined.SupportAgent, t("تواصل معنا", "Contact us"), sub = t("مساعد نقلة يرد عليك فوراً", "Naqla's assistant answers right away")) { nav.navigate("contact") }
+                    MenuRow(Icons.Outlined.Policy, t("السياسات والخصوصية", "Policies & privacy")) { nav.navigate("policies") }
+                    MenuRow(Icons.Outlined.Cookie, t("ملفات الارتباط والأذونات", "Cookies & permissions")) { nav.navigate("permissions") }
                     MenuRow(Icons.AutoMirrored.Outlined.Logout, t("تسجيل الخروج", "Sign out"), danger = true) {
                         scope.launch { Api.logout(); Prefs.clearSession(); Session.me = null }
                     }
@@ -91,21 +97,6 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
             }
         }
     }
-    if (help) AlertDialog(onDismissRequest = { help = false }, confirmButton = { TextButton({ help = false }) { Text(t("إغلاق", "Close")) } },
-        title = { Text(t("الأسئلة الشائعة", "FAQ")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Faq(t("كيف يُحدّد السعر؟", "How is the price set?"), t("نحسب حجم أغراضك، ثم نختار لكل شركة الشاحنة المناسبة وعدد الرحلات.", "We work out your items' volume, then each company's fitting truck and trips."))
-                Faq(t("هل أعدّل ما اكتشفه الذكاء الاصطناعي؟", "Can I fix what the AI found?"), t("نعم: أعد التسمية، غيّر الكمية، واسحب الصندوق إلى بيع أو نقل أو تبرع.", "Yes: rename, change quantities and slide the box to Sell, Move or Donate."))
-                Faq(t("متى أستطيع الإلغاء؟", "When can I cancel?"), t("قبل انطلاق الفريق إليك.", "Until the crew is on the way."))
-                Faq(t("المسودات", "Drafts"), t("لا تُحفظ المسودة إلا إذا اخترت حفظها. يمكنك أرشفتها.", "A draft is kept only if you save it. You can archive it."))
-            }
-        })
-}
-
-@Composable
-private fun Faq(q: String, a: String) {
-    Column { Text(q, fontWeight = FontWeight.Bold); Text(a, style = MaterialTheme.typography.bodyMedium) }
 }
 
 @Composable

@@ -1,6 +1,8 @@
 package com.nagla.app.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -90,13 +92,23 @@ fun BottomBar(nav: NavHostController, role: String) {
 fun RoleShell(role: String) {
     val nav = rememberNavController()
     val bottom: @Composable () -> Unit = { BottomBar(nav, role) }
-    NavHost(nav, startDestination = "home", modifier = Modifier.fillMaxSize()) {
+    NavHost(
+        nav, startDestination = "home", modifier = Modifier.fillMaxSize(),
+        enterTransition = { fadeIn(tween(220)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(280)) { it / 10 } },
+        exitTransition = { fadeOut(tween(160)) },
+        popEnterTransition = { fadeIn(tween(220)) },
+        popExitTransition = { fadeOut(tween(160)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(280)) { it / 10 } },
+    ) {
         // shared
         composable("profile") { ProfileScreen(nav, bottom) }
         composable("settings") { SettingsScreen(nav) }
         composable("addresses") { AddressesScreen(nav) }
         composable("password") { PasswordScreen(nav) }
         composable("account") { AccountScreen(nav) }
+        composable("help") { HelpScreen(nav) }
+        composable("contact") { ContactScreen(nav) }
+        composable("policies") { PoliciesScreen(nav) }
+        composable("permissions") { PermissionsScreen(nav) }
         composable("chat/{id}") { ChatScreen(nav, it.arguments!!.getString("id")!!) }
         when (role) {
             "company_admin" -> {

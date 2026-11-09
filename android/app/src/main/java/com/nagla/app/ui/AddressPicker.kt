@@ -1,5 +1,8 @@
 package com.nagla.app.ui
 
+import android.view.ViewTreeObserver
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -242,7 +245,26 @@ fun MapPicker(lat: Double?, lng: Double?, onDismiss: () -> Unit, onPick: (Double
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     // edge to edge, so the real system-bar insets reach the controls and nothing sits under the navigation bar
     Dialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Surface(Modifier.fillMaxSize()) {
+        // the dialog is laid out at the full display height, but some phones (Honor / Huawei) place its window between the
+        // status bar and the navigation bar, so the bottom (with the button) hangs off the screen. Measure the part of the
+        // screen the dialog can really show and keep everything inside it.
+        val view = LocalView.current
+        val density = LocalDensity.current
+        var visibleHeight by remember { mutableStateOf<Int?>(null) }
+        DisposableEffect(view) {
+            val listener = ViewTreeObserver.OnGlobalLayoutListener {
+                val frame = android.graphics.Rect().also { view.getWindowVisibleDisplayFrame(it) }
+                val onScreen = IntArray(2).also { view.getLocationOnScreen(it) }
+                // the dialog wraps its content, so compare with the screen, never with the dialog's own height
+                val h = frame.bottom - onScreen[1]
+                val next = if (h > 0) h else null
+                if (next != visibleHeight) visibleHeight = next
+            }
+            view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+            onDispose { view.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
+        }
+        val size = visibleHeight?.let { h -> Modifier.fillMaxWidth().height(with(density) { h.toDp() }) } ?: Modifier.fillMaxSize()
+        Surface(size) {
             Box(Modifier.fillMaxSize()) {
                 val s = style
                 if (s != null) {

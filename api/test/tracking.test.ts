@@ -121,6 +121,16 @@ describe('events endpoint', () => {
     expect((await ctx.app.inject({ method: 'POST', url: `/moves/${moveId}/cancel`, headers: bearer(customer) })).statusCode).toBe(409);
   });
 
+  it('keeps the cancel reason and the customer’s own words', async () => {
+    const draft = (await ctx.app.inject({ method: 'POST', url: '/moves', headers: bearer(customer) })).json().id;
+    const bad = await ctx.app.inject({ method: 'POST', url: `/moves/${draft}/cancel`, headers: bearer(customer), payload: { reason: 'nope' } });
+    expect(bad.statusCode).toBe(400);
+    const res = await ctx.app.inject({ method: 'POST', url: `/moves/${draft}/cancel`, headers: bearer(customer), payload: { reason: 'other', note: 'Staying one more year' } });
+    expect(res.json().tracking.status).toBe('cancelled');
+    const move = (await ctx.app.inject({ method: 'GET', url: `/moves/${draft}`, headers: bearer(customer) })).json();
+    expect(move).toMatchObject({ cancel_reason: 'other', cancel_note: 'Staying one more year' });
+  });
+
   it('a draft can be cancelled by its customer', async () => {
     const draft = (await ctx.app.inject({ method: 'POST', url: '/moves', headers: bearer(customer) })).json().id;
     const res = await ctx.app.inject({ method: 'POST', url: `/moves/${draft}/cancel`, headers: bearer(customer) });

@@ -28,8 +28,8 @@ private val OnNavyMuted = Color(0xFFB8CCC8)
 /** dark navy card (the home hero and the tracking "current stage" card) */
 @Composable
 fun HeroCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), color = Brand.Navy, contentColor = Color.White) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(23.dp), color = Brand.Navy, contentColor = Color.White) {
+        Column(Modifier.padding(21.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
     }
 }
 
@@ -65,13 +65,14 @@ fun StageHeroCard(stage: String?, percent: Int, updated: String?, company: Strin
 /** pickup (circle) → delivery (square) with a line between them */
 @Composable
 fun RouteLines(from: String?, to: String?, fromLabel: String? = null, toLabel: String? = null, fromSub: String? = null, toSub: String? = null) {
-    val line = MaterialTheme.colorScheme.outlineVariant
+    val colors = MaterialTheme.colorScheme
+    val line = colors.outlineVariant
     Row(Modifier.height(IntrinsicSize.Min)) {
         Column(Modifier.width(20.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(if (fromLabel != null) 20.dp else 6.dp))
-            Box(Modifier.size(11.dp).border(2.dp, Brand.TealDark, CircleShape))
+            Box(Modifier.size(11.dp).border(2.dp, colors.primary, CircleShape))
             Box(Modifier.width(2.dp).weight(1f).background(line))
-            Box(Modifier.size(10.dp).background(Brand.Navy))
+            Box(Modifier.size(10.dp).background(colors.onSurface))
             Spacer(Modifier.height(if (toSub != null) 22.dp else 6.dp))
         }
         Spacer(Modifier.width(10.dp))

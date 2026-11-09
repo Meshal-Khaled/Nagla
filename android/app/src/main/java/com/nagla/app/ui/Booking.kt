@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -320,7 +322,7 @@ private fun Stepper(step: Int, onPick: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         STEPS.forEachIndexed { i, (ar, en) ->
             val done = i < step
-            Column(Modifier.weight(1f).clickable(enabled = done) { onPick(i) }.padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.weight(1f).clickable(enabled = done, role = Role.Tab, onClickLabel = t("العودة لهذه الخطوة", "Go back to this step")) { onPick(i) }.padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
                     .background(when { done -> Brand.Teal; i == step -> Brand.Navy; else -> MaterialTheme.colorScheme.outlineVariant }))
                 Spacer(Modifier.height(8.dp))
@@ -474,8 +476,12 @@ private fun PhotosStep(move: MoveDetail?, scanning: Boolean, setUploading: (Bool
                                     Text(t("ممسوحة", "Scanned"), style = MaterialTheme.typography.labelSmall, color = Brand.Navy)
                                 }
                             }
-                            FilledTonalIconButton({ scope.launch { runCatching { Api.deletePhoto(p.id); onChanged() }.onFailure { onError(errorText(it)) } } },
-                                Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp)) { Icon(Icons.Outlined.Close, t("حذف الصورة", "Delete photo"), Modifier.size(16.dp)) }
+                            IconButton({ scope.launch { runCatching { Api.deletePhoto(p.id); onChanged() }.onFailure { onError(errorText(it)) } } },
+                                Modifier.align(Alignment.TopEnd)) {
+                                Surface(Modifier.size(32.dp), shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Close, t("حذف الصورة", "Delete photo"), Modifier.size(16.dp)) }
+                                }
+                            }
                         }
                     }
                 }
@@ -538,7 +544,7 @@ private fun AddRoomDialog(existing: List<String>, onDismiss: () -> Unit, onAdd: 
                     items(ROOM_TEMPLATES, key = { it.key }) { tp ->
                         val sel = picked == tp
                         Surface(
-                            Modifier.clip(MaterialTheme.shapes.medium).clickable { picked = tp; name = defaultName(tp) },
+                            Modifier.clip(MaterialTheme.shapes.medium).selectable(selected = sel, role = Role.RadioButton) { picked = tp; name = defaultName(tp) },
                             shape = MaterialTheme.shapes.medium,
                             color = if (sel) Brand.Lime else MaterialTheme.colorScheme.surfaceVariant,
                             border = if (sel) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
@@ -618,7 +624,7 @@ private fun ItemsStep(move: MoveDetail?, onMove: (MoveDetail) -> Unit, onError: 
             val sighting = firstSighting[i.id]
             val isSel = selected == i.id
             SectionCard(
-                Modifier.clip(MaterialTheme.shapes.large).clickable {
+                Modifier.clip(MaterialTheme.shapes.large).clickable(onClickLabel = t("إظهار القطعة على الصورة", "Show the item on its photo")) {
                     selected = if (isSel) null else i.id
                     // show the item on its photo
                     if (!isSel && sighting != null && reviewPhotos.isNotEmpty()) scope.launch { list.animateScrollToItem(3) }

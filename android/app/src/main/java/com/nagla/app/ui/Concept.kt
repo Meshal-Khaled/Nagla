@@ -35,8 +35,13 @@ fun HeroCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() 
 
 /** the current stage, big, with a lime progress bar */
 @Composable
-fun StageHeroCard(stage: String?, percent: Int, updated: String?) {
+fun StageHeroCard(stage: String?, percent: Int, updated: String?, company: String? = null) {
     HeroCard {
+        if (company != null) Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.LocalShipping, null, Modifier.size(16.dp), tint = Brand.Lime)
+            Spacer(Modifier.width(6.dp))
+            Text(t("شركة النقل: ", "Moving company: ") + company, style = MaterialTheme.typography.labelLarge, color = Brand.Lime)
+        }
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t("المرحلة الحالية", "Current stage"), style = MaterialTheme.typography.bodySmall, color = OnNavyMuted)

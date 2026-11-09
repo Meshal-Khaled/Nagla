@@ -2,7 +2,7 @@ package com.nagla.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -43,7 +43,7 @@ fun MoveCard(m: MoveRow, onClick: () -> Unit, trailing: (@Composable () -> Unit)
                 StatusBadge(m.status, m.current_stage)
                 trailing?.invoke()
             }
-            val who = m.customer_name ?: m.company_name ?: if (m.status == "draft") t("مسودة محفوظة", "Saved draft") else null
+            val who = m.customer_name ?: m.company_name?.let { t("شركة النقل: ", "Moving company: ") + it } ?: if (m.status == "draft") t("مسودة محفوظة", "Saved draft") else null
             if (who != null) Text(who, style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.AltRoute, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -131,6 +131,7 @@ private fun NextMoveCard(m: MoveRow, onOpen: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        m.company_name?.let { Text(t("مع ", "With ") + it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) }
         if (m.assigned_agent_name != null) CheckChip(t("تم تعيين الفني", "Technician assigned")) else StatusBadge(m.status, m.current_stage)
         RouteLines(m.pickup_address, m.dropoff_address)
         OutlinedButton(onOpen, Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium,
@@ -279,7 +280,8 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
                         Spacer(Modifier.width(12.dp))
                         Text(stageName(stage), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
                     }
-                } else StageHeroCard(stage, b.tracking.progress?.percent ?: 0, clockText(b.tracking.events.lastOrNull()?.created_at))
+                } else StageHeroCard(stage, b.tracking.progress?.percent ?: 0, clockText(b.tracking.events.lastOrNull()?.created_at),
+                    company = if (company) null else m.company?.let { t(it.name_ar ?: it.name_en, it.name_en) })
             }
             // company: accept / reject, the job sheet; anyone: cancel before the crew sets off
             if (company || (open && beforeCrew)) item {
@@ -335,6 +337,7 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
             }
             m.quote?.let { q -> item {
                 SectionCard(title = t("السعر المؤكد", "Confirmed price"), icon = Icons.Outlined.Payments) {
+                    m.company?.let { InfoRow(t("الشركة", "Company"), t(it.name_ar ?: it.name_en, it.name_en), Icons.Outlined.Business) }
                     InfoRow(t("الشاحنة", "Truck"), truckName(q.truck_name) + " · " + tripsText(q.trips), Icons.Outlined.LocalShipping)
                     InfoRow(t("العمال", "Crew"), q.crew_size.toString(), Icons.Outlined.Groups)
                     InfoRow(t("المدة", "Time"), "~${q.estimated_minutes} " + t("دقيقة", "min"), Icons.Outlined.Schedule)
@@ -384,7 +387,7 @@ private fun StepsCard(stage: String?, events: List<com.nagla.app.data.Event>) {
         }
         TextButton({ all = !all }) {
             Text(if (all) t("عرض أقل", "Show less") else t("عرض جميع المراحل", "Show all stages"))
-            Icon(if (all) Icons.Outlined.ExpandLess else Icons.AutoMirrored.Outlined.KeyboardArrowLeft, null, Modifier.size(18.dp))
+            Icon(if (all) Icons.Outlined.ExpandLess else Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, Modifier.size(18.dp))
         }
     }
 }
@@ -424,12 +427,15 @@ fun AddressBlock(label: String, address: String?, d: com.nagla.app.data.AddressD
 fun ItemsSummary(items: List<com.nagla.app.data.Item>) {
     SectionCard(title = t("الأغراض", "Items") + " (${items.sumOf { it.quantity }})", icon = Icons.Outlined.Inventory2) {
         if (items.isEmpty()) Text(t("لا توجد أغراض.", "No items."))
-        items.forEach { i ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(t(i.name_ar, i.name_en) + if (i.quantity > 1) " × ${i.quantity}" else "", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                if (i.fragile) Icon(Icons.Outlined.WineBar, t("قابل للكسر", "fragile"), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+        // the same item several times is one line with its total
+        items.groupBy { Triple(t(it.name_ar, it.name_en), it.disposition, it.fragile) }.forEach { (k, group) ->
+            val (name, disposition, fragile) = k
+            val qty = group.sumOf { it.quantity }
+            Row(Modifier.heightIn(min = 32.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(name + if (qty > 1) " × $qty" else "", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                if (fragile) Icon(Icons.Outlined.WineBar, t("قابل للكسر", "fragile"), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.width(8.dp))
-                Text(dispositionName(i.disposition), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(dispositionName(disposition), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
     }

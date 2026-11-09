@@ -143,7 +143,7 @@ fun time12(hhmm: String): String {
     val m = hhmm.drop(3).take(2).toIntOrNull() ?: 0
     val am = h < 12
     val h12 = if (h % 12 == 0) 12 else h % 12
-    return String.format(java.util.Locale.US, "%d:%02d ", h12, m) + if (am) t("ص", "AM") else t("م", "PM")
+    return String.format(java.util.Locale.US, "%d:%02d\u00A0", h12, m) + if (am) t("ص", "AM") else t("م", "PM")
 }
 
 fun errorText(e: Throwable): String {

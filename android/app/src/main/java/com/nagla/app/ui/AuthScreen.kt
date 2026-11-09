@@ -1,7 +1,12 @@
 package com.nagla.app.ui
 
 import android.app.Activity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -93,55 +98,79 @@ fun AuthScreen() {
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).systemBarsPadding().imePadding().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // the lockup has the sheet's light background: give it a matching card so it looks right in dark mode too
-            Surface(color = Brand.Splash, shape = MaterialTheme.shapes.large, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp)) {
-                Image(painterResource(R.drawable.logo_lockup), "نقلة Naqla", Modifier.width(220.dp).padding(horizontal = 14.dp, vertical = 8.dp))
-            }
-            Text(
-                if (register) t("إنشاء حساب", "Create an account") else t("أهلاً بعودتك", "Welcome back"),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            if (register) OutlinedTextField(name, { name = it }, label = { Text(t("الاسم", "Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Outlined.Person, null) })
-            OutlinedTextField(email, { email = it }, label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Outlined.Email, null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
-            OutlinedTextField(password, { password = it }, label = { Text(t("كلمة المرور", "Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Outlined.Lock, null) },
-                trailingIcon = { IconButton({ showPw = !showPw }) { Icon(if (showPw) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) } },
-                visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = if (register) ImeAction.Next else ImeAction.Done),
-                supportingText = if (register) ({ Text(t("٨ أحرف على الأقل", "At least 8 characters")) }) else null)
-            val mismatch = register && confirm.isNotEmpty() && confirm != password
-            if (register) OutlinedTextField(confirm, { confirm = it }, label = { Text(t("تأكيد كلمة المرور", "Confirm password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Outlined.Lock, null) },
-                visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                isError = mismatch,
-                supportingText = if (mismatch) ({ Text(t("كلمتا المرور غير متطابقتين", "The passwords don't match")) }) else null)
-            ErrorNote(error)
-            PrimaryButton(
-                if (register) t("إنشاء الحساب", "Create account") else t("تسجيل الدخول", "Sign in"), ::submit, Modifier.fillMaxWidth(),
-                enabled = email.isNotBlank() && password.isNotEmpty() && (!register || (name.isNotBlank() && password.length >= 8 && confirm == password)), busy = busy,
-            )
-            run {
-                TextButton({ register = !register; error = null; confirm = "" }, Modifier.align(Alignment.CenterHorizontally)) {
-                    Text(if (register) t("لدي حساب", "I have an account") else t("إنشاء حساب جديد", "Create an account"))
+        // the form sits in the middle of the screen; it scrolls when the keyboard or a large font needs the room
+        BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+            Column(
+                Modifier.fillMaxWidth().heightIn(min = maxHeight).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+            ) {
+                // the lockup has the sheet's light background: give it a matching card so it looks right in dark mode too
+                Surface(color = Brand.Splash, shape = MaterialTheme.shapes.large, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Image(painterResource(R.drawable.logo_lockup), "نقلة Naqla", Modifier.width(200.dp).padding(horizontal = 14.dp, vertical = 8.dp))
                 }
+                Text(
+                    if (register) t("إنشاء حساب", "Create an account") else t("أهلاً بعودتك", "Welcome back"),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                if (register) OutlinedTextField(name, { name = it }, label = { Text(t("الاسم", "Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.Person, null) })
+                OutlinedTextField(email, { email = it }, label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.Email, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next))
+                OutlinedTextField(password, { password = it }, label = { Text(t("كلمة المرور", "Password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.Lock, null) },
+                    trailingIcon = { IconButton({ showPw = !showPw }) { Icon(if (showPw) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (showPw) t("إخفاء كلمة المرور", "Hide password") else t("إظهار كلمة المرور", "Show password")) } },
+                    visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = if (register) ImeAction.Next else ImeAction.Done),
+                    supportingText = if (register) ({ Text(t("٨ أحرف على الأقل", "At least 8 characters")) }) else null)
+                val mismatch = register && confirm.isNotEmpty() && confirm != password
+                if (register) OutlinedTextField(confirm, { confirm = it }, label = { Text(t("تأكيد كلمة المرور", "Confirm password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Outlined.Lock, null) },
+                    visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    isError = mismatch,
+                    supportingText = if (mismatch) ({ Text(t("كلمتا المرور غير متطابقتين", "The passwords don't match")) }) else null)
+                ErrorNote(error)
+                PrimaryButton(
+                    if (register) t("إنشاء الحساب", "Create account") else t("تسجيل الدخول", "Sign in"), ::submit, Modifier.fillMaxWidth(),
+                    enabled = email.isNotBlank() && password.isNotEmpty() && (!register || (name.isNotBlank() && password.length >= 8 && confirm == password)), busy = busy,
+                )
+                // Google right under the main button, as the alternative to it
                 google?.let { clientId ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(Modifier.weight(1f)); Text("  " + t("أو", "or") + "  ", color = MaterialTheme.colorScheme.onSurfaceVariant); HorizontalDivider(Modifier.weight(1f))
                     }
-                    OutlinedButton({ googleSignIn(clientId) }, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = !busy) {
-                        Text("G  ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text(t("المتابعة باستخدام Google", "Continue with Google"))
+                    GoogleButton(enabled = !busy) { googleSignIn(clientId) }
+                }
+                // switching between sign in and a new account, at the bottom
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (register) t("لديك حساب؟", "Have an account?") else t("ليس لديك حساب؟", "No account yet?"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton({ register = !register; error = null; confirm = "" }) {
+                        Text(if (register) t("تسجيل الدخول", "Sign in") else t("إنشاء حساب جديد", "Create an account"), fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * "Continue with Google" as Google's sign-in branding asks: the official multicolour G, a neutral fill with a grey
+ * outline (light #FFFFFF / #747775 / #1F1F1F, dark #131314 / #8E918F / #E3E3E3), full rounded corners.
+ */
+@Composable
+private fun GoogleButton(enabled: Boolean, onClick: () -> Unit) {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    OutlinedButton(
+        onClick, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = enabled, shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (dark) Color(0xFF131314) else Color.White,
+            contentColor = if (dark) Color(0xFFE3E3E3) else Color(0xFF1F1F1F),
+        ),
+        border = BorderStroke(1.dp, if (dark) Color(0xFF8E918F) else Color(0xFF747775)),
+    ) {
+        Image(painterResource(R.drawable.ic_google_g), null, Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(t("المتابعة باستخدام Google", "Continue with Google"), style = MaterialTheme.typography.labelLarge)
     }
 }

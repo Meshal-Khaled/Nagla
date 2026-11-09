@@ -15,6 +15,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -234,9 +237,10 @@ fun DecisionSlider(value: String, onChange: (String) -> Unit, modifier: Modifier
             },
     ) {
         // the three compartments
-        Row(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize().selectableGroup()) {
             options.forEach { o ->
-                Row(Modifier.weight(1f).fillMaxHeight().clickable { onChange(o) }, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).fillMaxHeight().selectable(selected = value == o, role = Role.RadioButton) { onChange(o) },
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(6.dp))
                     Icon(icons[o]!!, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -312,7 +316,7 @@ fun StarsInput(value: Int, onChange: (Int) -> Unit) {
     Row {
         (1..5).forEach { n ->
             IconButton(onClick = { onChange(n) }) {
-                Icon(if (n <= value) Icons.Filled.Star else Icons.Outlined.StarOutline, null,
+                Icon(if (n <= value) Icons.Filled.Star else Icons.Outlined.StarOutline, t("$n من 5", "$n of 5"),
                     tint = if (n <= value) Color(0xFFF5B301) else MaterialTheme.colorScheme.outline, modifier = Modifier.size(32.dp))
             }
         }

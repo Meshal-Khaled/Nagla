@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -207,8 +209,8 @@ fun SettingsScreen(nav: NavHostController) {
             item {
                 SectionCard(title = t("اللغة", "Language"), icon = Icons.Outlined.Language) {
                     listOf("ar" to "العربية", "en" to "English").forEach { (k, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { Prefs.setLanguage(k) }, verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(Prefs.lang == k, { Prefs.setLanguage(k) }); Text(label)
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(Prefs.lang == k, role = Role.RadioButton) { Prefs.setLanguage(k) }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(Prefs.lang == k, null); Spacer(Modifier.width(12.dp)); Text(label)
                         }
                     }
                 }
@@ -216,8 +218,8 @@ fun SettingsScreen(nav: NavHostController) {
             item {
                 SectionCard(title = t("المظهر", "Appearance"), icon = Icons.Outlined.DarkMode) {
                     listOf("light" to t("فاتح", "Light"), "dark" to t("داكن", "Dark"), "system" to t("حسب الجهاز", "Follow the phone")).forEach { (k, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { Prefs.setThemeMode(k) }, verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(Prefs.theme == k, { Prefs.setThemeMode(k) }); Text(label)
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(Prefs.theme == k, role = Role.RadioButton) { Prefs.setThemeMode(k) }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(Prefs.theme == k, null); Spacer(Modifier.width(12.dp)); Text(label)
                         }
                     }
                 }

@@ -1,0 +1,96 @@
+﻿#,Company,Region,City,Admin email (company portal),Technician email (app)
+demo,Al-Saqr Movers / الصقر لنقل العفش,(all regions),,admin@saqr.test,tech@saqr.test
+1 (demo),Fast Move / النقل السريع,منطقة الرياض,الرياض,admin@fastmove.test,tech@fastmove.test
+2,خدمات المهندس,منطقة الرياض,الرياض,company2@nagla.test,tech2@nagla.test
+3,نقلاتي,منطقة الرياض,الرياض,company3@nagla.test,tech3@nagla.test
+4,البسمة إكسبريس,منطقة الرياض,الرياض,company4@nagla.test,tech4@nagla.test
+5,المتحدة لنقل الأثاث,منطقة الرياض,الرياض,company5@nagla.test,tech5@nagla.test
+6,سيف موفرز,منطقة الرياض,الرياض,company6@nagla.test,tech6@nagla.test
+7,برو موف,منطقة الرياض,الرياض,company7@nagla.test,tech7@nagla.test
+8,الهلال الذهبي,منطقة الرياض,الرياض,company8@nagla.test,tech8@nagla.test
+9,بسمة الرياض,منطقة الرياض,الرياض,company9@nagla.test,tech9@nagla.test
+10,KIM International Movers,منطقة الرياض,الرياض,company10@nagla.test,tech10@nagla.test
+11,مسار لنقل العفش,منطقة الرياض,الرياض,company11@nagla.test,tech11@nagla.test
+12,الأمانة لنقل وتخزين الأثاث,منطقة الرياض,الرياض,company12@nagla.test,tech12@nagla.test
+13,فرحات جروب,منطقة الرياض,الرياض,company13@nagla.test,tech13@nagla.test
+14,خليج الرياض لنقل وتخزين العفش,منطقة الرياض,الرياض,company14@nagla.test,tech14@nagla.test
+15,الأفضل الماسية,منطقة الرياض,الرياض,company15@nagla.test,tech15@nagla.test
+16,الرحال لنقل العفش,منطقة مكة المكرمة,جدة,company16@nagla.test,tech16@nagla.test
+17,كيان الخليج,منطقة مكة المكرمة,جدة,company17@nagla.test,tech17@nagla.test
+18,الفهد السريع,منطقة مكة المكرمة,جدة,company18@nagla.test,tech18@nagla.test
+19,القصر السعودي,منطقة مكة المكرمة,جدة,company19@nagla.test,tech19@nagla.test
+20,زهرة الخليج,منطقة مكة المكرمة,جدة,company20@nagla.test,tech20@nagla.test
+21,الرهوان السريعة,منطقة مكة المكرمة,جدة,company21@nagla.test,tech21@nagla.test
+22,الجوهرة,منطقة مكة المكرمة,جدة,company22@nagla.test,tech22@nagla.test
+23,نقل جدة,منطقة مكة المكرمة,جدة,company23@nagla.test,tech23@nagla.test
+24,الشركة العربية,منطقة مكة المكرمة,جدة,company24@nagla.test,tech24@nagla.test
+25,الجلال,منطقة مكة المكرمة,جدة,company25@nagla.test,tech25@nagla.test
+26,أهل الحجاز,منطقة مكة المكرمة,جدة,company26@nagla.test,tech26@nagla.test
+27,مؤسسة الأمانة,منطقة مكة المكرمة,جدة,company27@nagla.test,tech27@nagla.test
+28,راحة الأثاث,المنطقة الشرقية,الدمام,company28@nagla.test,tech28@nagla.test
+29,الدمام كلين,المنطقة الشرقية,الدمام,company29@nagla.test,tech29@nagla.test
+30,دار المودة,المنطقة الشرقية,الدمام,company30@nagla.test,tech30@nagla.test
+31,إسناد العالم,المنطقة الشرقية,الدمام,company31@nagla.test,tech31@nagla.test
+32,المدار,المنطقة الشرقية,الدمام,company32@nagla.test,tech32@nagla.test
+33,ممرات الخليج,المنطقة الشرقية,الدمام,company33@nagla.test,tech33@nagla.test
+34,هوم باك,المنطقة الشرقية,الدمام,company34@nagla.test,tech34@nagla.test
+35,فرسان الخليج,المنطقة الشرقية,الدمام,company35@nagla.test,tech35@nagla.test
+36,الهدى للنقل والخدمات المنزلية,المنطقة الشرقية,الدمام (الخبر),company36@nagla.test,tech36@nagla.test
+37,التفاؤل,المنطقة الشرقية,الدمام (الخبر),company37@nagla.test,tech37@nagla.test
+38,شركة نقل عفش بمكة النور لنقل العفش,منطقة مكة المكرمة,مكة المكرمة,company38@nagla.test,tech38@nagla.test
+39,شركة زمردة لنقل العفش بمكة,منطقة مكة المكرمة,مكة المكرمة,company39@nagla.test,tech39@nagla.test
+40,شركة نقل عفش بمكة ALMOHANDES,منطقة مكة المكرمة,مكة المكرمة,company40@nagla.test,tech40@nagla.test
+41,شركة امجاد مكة لنقل العفش,منطقة مكة المكرمة,مكة المكرمة,company41@nagla.test,tech41@nagla.test
+42,شركة الأشراف لنقل العفش بمكة,منطقة مكة المكرمة,مكة المكرمة,company42@nagla.test,tech42@nagla.test
+43,شركة نقل عفش بالطائف القبطان نقل اثاث,منطقة مكة المكرمة,الطائف,company43@nagla.test,tech43@nagla.test
+44,مؤسسة أعتمد علينا (خدمات عامة ونقل عفش) الطائف,منطقة مكة المكرمة,الطائف,company44@nagla.test,tech44@nagla.test
+45,شركة القمر السعودي لنقل الاثاث بالطائف,منطقة مكة المكرمة,الطائف,company45@nagla.test,tech45@nagla.test
+46,شركة البصمة لنقل العفش - الطائف,منطقة مكة المكرمة,الطائف,company46@nagla.test,tech46@nagla.test
+47,الأفضل شركة نقل عفش بالمدينة المنورة,منطقة المدينة المنورة,المدينة المنورة,company47@nagla.test,tech47@nagla.test
+48,شركة الاختيار لنقل الاثاث بالمدينة المنورة,منطقة المدينة المنورة,المدينة المنورة,company48@nagla.test,tech48@nagla.test
+49,النور شركة نقل عفش بالمدينة المنورة,منطقة المدينة المنورة,المدينة المنورة,company49@nagla.test,tech49@nagla.test
+50,شركة خيول الخليج لنقل الاثاث بالمدينة المنورة,منطقة المدينة المنورة,المدينة المنورة,company50@nagla.test,tech50@nagla.test
+51,مؤسسة الخيام ينبع للتجارة,منطقة المدينة المنورة,ينبع,company51@nagla.test,tech51@nagla.test
+52,بن دهيس لنقل العفش بينبع,منطقة المدينة المنورة,ينبع,company52@nagla.test,tech52@nagla.test
+53,الرفاعي لنقل العفش ينبع,منطقة المدينة المنورة,ينبع,company53@nagla.test,tech53@nagla.test
+54,المثلث لنقل العفش - ينبع,منطقة المدينة المنورة,ينبع,company54@nagla.test,tech54@nagla.test
+55,شركة نقل عفش القصيم زهرة الخليج,منطقة القصيم,بريدة,company55@nagla.test,tech55@nagla.test
+56,شركة سرعة بلس نقل عفش داخل وخارج القصيم,منطقة القصيم,بريدة,company56@nagla.test,tech56@nagla.test
+57,شركة الاختيار الأول نقل عفش ببريدة,منطقة القصيم,بريدة,company57@nagla.test,tech57@nagla.test
+58,شركة قصر نقل عفش اثاث بالقصيم,منطقة القصيم,بريدة,company58@nagla.test,tech58@nagla.test
+59,شركة نقل عفش في القصيم الراسي,منطقة القصيم,بريدة,company59@nagla.test,tech59@nagla.test
+60,شركة التمساح لنقل العفش خارج أبها,منطقة عسير,أبها,company60@nagla.test,tech60@nagla.test
+61,نواف نقل للأثاث,منطقة عسير,أبها,company61@nagla.test,tech61@nagla.test
+62,النجم السريع نقل عفش بخميس مشيط Fast Star,منطقة عسير,خميس مشيط,company62@nagla.test,tech62@nagla.test
+63,شركة مسك الفجر نقل عفش,منطقة عسير,خميس مشيط,company63@nagla.test,tech63@nagla.test
+64,شركة مسار الأمان لنقل العفش,منطقة عسير,خميس مشيط,company64@nagla.test,tech64@nagla.test
+65,شركة نقل عفش بتبوك ينبوعة لنقل والتخزين,منطقة تبوك,تبوك,company65@nagla.test,tech65@nagla.test
+66,شركة نقل عفش الأتحاد بتبوك,منطقة تبوك,تبوك,company66@nagla.test,tech66@nagla.test
+67,شركة نقل عفش بتبوك متروالتشييد,منطقة تبوك,تبوك,company67@nagla.test,tech67@nagla.test
+68,شركة نقل عفش بتبوك نجاح العطوى للصيانة والنظافة,منطقة تبوك,تبوك,company68@nagla.test,tech68@nagla.test
+69,شركة الصفرات نقل عفش بتبوك,منطقة تبوك,تبوك,company69@nagla.test,tech69@nagla.test
+70,شركة يوسف لنقل العفش بحائل,منطقة حائل,حائل,company70@nagla.test,tech70@nagla.test
+71,زهرة الخليج لنقل العفش حائل,منطقة حائل,حائل,company71@nagla.test,tech71@nagla.test
+72,المعتمد لخدمات نقل العفش والاثاث بحائل,منطقة حائل,حائل,company72@nagla.test,tech72@nagla.test
+73,شركة نقل عفش حائل بشائر الخير,منطقة حائل,حائل,company73@nagla.test,tech73@nagla.test
+74,شركة عابر القارات لنقل العفش بجازان,منطقة جازان,جازان,company74@nagla.test,tech74@nagla.test
+75,شركة اتقان الطرق نقل عفش,منطقة جازان,جازان,company75@nagla.test,tech75@nagla.test
+76,مؤسسة الزيل الأزرق لنقل العفش والأثاث,منطقة جازان,جازان,company76@nagla.test,tech76@nagla.test
+77,شركة ابن زايد لنقل الاثاث,منطقة نجران,نجران,company77@nagla.test,tech77@nagla.test
+78,البيت الذهبي نقل عفش نقل اثاث Golden House,منطقة نجران,نجران,company78@nagla.test,tech78@nagla.test
+79,دينة نجران,منطقة نجران,نجران,company79@nagla.test,tech79@nagla.test
+80,النهمي نقل للعفش,منطقة نجران,نجران,company80@nagla.test,tech80@nagla.test
+81,البركة الحديثة نقل للاثاث,منطقة نجران,نجران,company81@nagla.test,tech81@nagla.test
+82,العائلة نقل عفش نقل اثاث,منطقة الباحة,الباحة,company82@nagla.test,tech82@nagla.test
+83,النهضة نقل عفش نقل اثاث,منطقة الباحة,الباحة,company83@nagla.test,tech83@nagla.test
+84,مكتب محمد جبر لنقل العفش,منطقة الجوف,سكاكا,company84@nagla.test,tech84@nagla.test
+85,مكتب رودالخير للنقليات Rode Al-Khayer,منطقة الحدود الشمالية,عرعر,company85@nagla.test,tech85@nagla.test
+86,سهم جوهرة الشمال وسطاء الشحن,منطقة الحدود الشمالية,رفحاء,company86@nagla.test,tech86@nagla.test
+87,شركة أكيد نقل عفش وأثاث,المنطقة الشرقية,الهفوف,company87@nagla.test,tech87@nagla.test
+88,شركة نقل عفش بالهفوف المتحدة لنقل الاثاث,المنطقة الشرقية,الهفوف,company88@nagla.test,tech88@nagla.test
+89,مؤسسة تميز الشفاء شركة نقل عفش بالهفوف,المنطقة الشرقية,الهفوف,company89@nagla.test,tech89@nagla.test
+90,شركة نقل عفش بالهفوف الشركة الدولية,المنطقة الشرقية,الهفوف,company90@nagla.test,tech90@nagla.test
+91,شركة كنوز التميز للنقليات لنقل العفش والأثاث,المنطقة الشرقية,الهفوف,company91@nagla.test,tech91@nagla.test
+92,شركة اوسكار لنقل العفش والاثاث بالجبيل,المنطقة الشرقية,الجبيل,company92@nagla.test,tech92@nagla.test
+93,شركة نقل عفش بالجبيل خدمة نقل أثاث,المنطقة الشرقية,الجبيل,company93@nagla.test,tech93@nagla.test
+94,شركة رواد الشرقية لنقل العفش بالجبيل,المنطقة الشرقية,الجبيل,company94@nagla.test,tech94@nagla.test

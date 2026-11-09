@@ -72,7 +72,7 @@ class FlakyProvider:
         self.replies = list(replies)
         self.feedback = []
 
-    async def complete(self, *, prompt, images, feedback=None):
+    async def complete(self, *, prompt, images, feedback=None, schema=None):
         self.feedback.append(feedback)
         return self.replies.pop(0)
 
@@ -97,3 +97,29 @@ async def test_gives_up_after_one_retry():
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def test_box_2d_becomes_a_box_and_a_grid_cell():
+    raw = json.dumps({"items": [
+        # [ymin, xmin, ymax, xmax] 0-1000; centre (0.5, 0.5) → cell 5, whatever the model said
+        {"label": "white table", "category": "couch", "size_class": "large", "confidence": 1.3,
+         "sightings": [{"photo_id": "p1", "box_2d": [250, 100, 750, 900], "cell": 1}]},
+        # bottom-right corner
+        {"category": "moving_box", "size_class": "small", "sightings": [{"photo_id": "p2", "box_2d": [900, 900, 1000, 1000]}]},
+        # no box: the model's cell is kept when valid
+        {"category": "mattress", "size_class": "large", "sightings": [{"photo_id": "p1", "cell": 3}]},
+    ]})
+    out = parse_output(raw, meta())
+    a, b, c = out.items
+    assert a.label == "white table" and a.confidence == 1.0
+    box = a.sightings[0].box
+    assert (round(box.x, 3), round(box.y, 3), round(box.w, 3), round(box.h, 3)) == (0.1, 0.25, 0.8, 0.5)
+    assert a.sightings[0].cell == 5
+    assert b.sightings[0].cell == 9
+    assert c.sightings[0].box is None and c.sightings[0].cell == 3
+
+
+def test_detect_keeps_the_raw_model_output_for_debugging(client):
+    body = post(client, "bedroom_1").json()
+    assert body["debug"]["vision_items"] == len(body["items"])
+    assert json.loads(body["debug"]["vision_raw"])["items"]

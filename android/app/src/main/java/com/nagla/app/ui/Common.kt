@@ -82,11 +82,12 @@ fun AppScreen(
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
+    showTopBar: Boolean = true,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            if (showTopBar) TopAppBar(
                 title = { Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1) },
                 navigationIcon = { if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, t("رجوع", "Back")) } },
                 actions = actions,

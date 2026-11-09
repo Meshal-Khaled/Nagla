@@ -47,12 +47,15 @@ describe('estimate', () => {
     ]);
   });
 
-  it('uses the largest truck with trips when nothing fits', () => {
+  it('offers only the companies with a truck that carries the whole volume', () => {
+    const offers = estimate([item(24)], companies, settings); // 30 m³ packed: only Big has a 35 m³ truck
+    expect(offers.map((o) => [o.company_name, o.truck_name, o.trips, o.price_halalas])).toEqual([['Big', 'large', 1, 110000]]);
+  });
+
+  it('when no truck is big enough, offers the companies needing the fewest trips', () => {
     const offers = estimate([item(40)], companies, settings); // 50 m³ packed
-    const small = offers.find((o) => o.company_name === 'Small')!;
-    expect(small).toMatchObject({ truck_name: 'medium', trips: 3, price_halalas: 180000, crew_size: 4 });
-    const big = offers.find((o) => o.company_name === 'Big')!;
-    expect(big).toMatchObject({ truck_name: 'large', trips: 2, price_halalas: 220000 });
+    expect(offers.map((o) => o.company_name)).toEqual(['Big']);
+    expect(offers[0]).toMatchObject({ truck_name: 'large', trips: 2, price_halalas: 220000, crew_size: 4 });
   });
 
   it('skips companies without trucks', () => {

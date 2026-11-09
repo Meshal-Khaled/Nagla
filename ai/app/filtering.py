@@ -33,14 +33,18 @@ class NoFilter:
 
 def build_filter_prompt(result: DetectRoomResponse, meta: DetectRoomMeta) -> str:
     listing = [
-        {"index": i, "category": it.category, "size_class": it.size_class, "confidence": it.confidence,
-         "photos": sorted({s.photo_id for s in it.sightings})}
+        {"index": i, "label": it.label, "category": it.category, "size_class": it.size_class, "confidence": it.confidence,
+         "where": [{"photo": s.photo_id, "cell": s.cell} for s in it.sightings]}
         for i, it in enumerate(result.items)
     ]
     return f"""A vision model listed the objects it saw in photos of ONE room ("{meta.room}") of a home being moved.
 Clean the list for a moving company:
-- Drop anything that is not moved (walls, windows, doors, built-in cabinets, ceiling lights, people, pets).
-- If two entries are clearly the same physical object, keep one and list the others in "merge".
+- Drop anything that is not moved (walls, windows, doors, sockets, built-in cabinets, ceiling lights, people, pets)
+  and small loose things that go inside a box (bottles, cups, tissue boxes, pens, papers, books).
+- "cell" is the 3x3 grid cell of the photo holding the object (1 top-left ... 9 bottom-right).
+- Two entries seen in the SAME photo are always different objects: never merge them.
+- Only when two entries come from DIFFERENT photos and are clearly the same physical object, keep one and list the
+  others in "merge".
 - You may correct "category" (MUST be one of: {", ".join(meta.categories)}) and "size_class" (one of: {", ".join(meta.size_classes)}).
 - Keep real separate objects separate (4 dining chairs stay 4 entries). When unsure, keep the entry unchanged.
 
@@ -76,9 +80,11 @@ def apply_decisions(result: DetectRoomResponse, meta: DetectRoomMeta, raw: str) 
             item.size_class = d["size_class"]
         for j in d.get("merge") or []:
             if isinstance(j, int) and 0 <= j < n and j not in used:
-                used.add(j)
                 seen = {s.photo_id for s in item.sightings}
-                item.sightings += [s for s in result.items[j].sightings if s.photo_id not in seen]
+                if seen & {s.photo_id for s in result.items[j].sightings}:
+                    continue  # both in one photo: two objects, not a duplicate (j stays available)
+                used.add(j)
+                item.sightings += result.items[j].sightings
         out.append(item)
 
     if n and not out:
@@ -115,11 +121,19 @@ class ClaudeFilter:
     async def apply(self, result: DetectRoomResponse, meta: DetectRoomMeta) -> DetectRoomResponse:
         if not result.items:
             return result
+        reply = None
         try:
-            return apply_decisions(result, meta, await self._ask(build_filter_prompt(result, meta)))
+            reply = await self._ask(build_filter_prompt(result, meta))
+            out = apply_decisions(result, meta, reply)
         except Exception as e:  # noqa: BLE001 - fail-open: the vision result is still valid
             log.warning("claude filter skipped for room %s: %r", meta.room, e)
+            if result.debug:
+                result.debug.filter_raw = reply[:20000] if reply else None
+                result.debug.filter_error = repr(e)[:500]
             return result
+        if result.debug:
+            out.debug = result.debug.model_copy(update={"filter_raw": reply[:20000]})
+        return out
 
 
 FILTERS: dict[str, type] = {"none": NoFilter, "claude": ClaudeFilter}

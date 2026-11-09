@@ -71,6 +71,15 @@ export async function moveRoutes(app: FastifyInstance, deps: Deps) {
     return moveDetails(deps, move);
   });
 
+  // what the vision model and the filter answered for each room of the last scans (for debugging a scan)
+  app.get('/moves/:id/ai-runs', { preHandler: customer }, async (req) => {
+    const { id } = IdParam.parse(req.params);
+    await loadMove(db, id, currentUser(req), { ownerOnly: true });
+    return db.selectFrom('ai_runs')
+      .select(['id', 'room', 'photo_ids', 'vision_raw', 'vision_items', 'filter_raw', 'filter_error', 'kept_items', 'created_at'])
+      .where('move_id', '=', id).orderBy('created_at', 'desc').limit(20).execute();
+  });
+
   app.patch('/moves/:id', { preHandler: customer }, async (req) => {
     const { id } = IdParam.parse(req.params);
     const body = PatchMove.parse(req.body);

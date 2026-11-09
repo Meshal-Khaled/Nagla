@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نقلة · بوابة الشركات</title>
+  <link rel="icon" href="naqla_mark.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- sign in -->
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <img src="logo_lockup.png" alt="نقلة Naqla" class="login-logo">
+      <h1 data-t="بوابة شركات النقل|Moving company portal"></h1>
+      <p class="muted" data-t="سجّل الدخول بحساب مدير الشركة أو الفني.|Sign in with your company admin or technician account."></p>
+      <label><span data-t="البريد الإلكتروني|Email"></span><input name="email" type="email" required autocomplete="username"></label>
+      <label><span data-t="كلمة المرور|Password"></span><input name="password" type="password" required autocomplete="current-password"></label>
+      <p id="login-error" class="error" hidden></p>
+      <button class="btn primary" type="submit" data-t="تسجيل الدخول|Sign in"></button>
+      <a class="link" href="tech.html" data-t="أنا فني|I'm a technician"></a>
+      <button class="link lang-toggle" type="button"></button>
+    </form>
+  </main>
+
+  <!-- portal -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <img src="logo_lockup.png" alt="نقلة Naqla" class="topbar-logo">
+      <div class="topbar-company">
+        <strong id="company-name"></strong>
+        <span class="muted" id="admin-name"></span>
+      </div>
+      <span class="live" title=""><i></i><span data-t="تحديث تلقائي|Live"></span></span>
+      <button class="link lang-toggle" type="button"></button>
+      <button class="btn ghost" id="logout" type="button" data-t="تسجيل الخروج|Sign out"></button>
+    </header>
+
+    <div class="layout">
+      <section class="list-pane">
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-scope="incoming"><span data-t="الواردة|Incoming"></span><b class="count" id="count-incoming">0</b></button>
+          <button role="tab" data-scope="active"><span data-t="قيد التنفيذ|In progress"></span><b class="count" id="count-active">0</b></button>
+          <button role="tab" data-scope="closed"><span data-t="المنتهية|Closed"></span><b class="count" id="count-closed">0</b></button>
+        </nav>
+        <div id="list" class="list"></div>
+      </section>
+
+      <section class="detail-pane" id="detail">
+        <div class="empty">
+          <img src="naqla_mark.png" alt="" width="64">
+          <p data-t="اختر طلباً لعرض تفاصيله.|Pick a move to see its details."></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -35,13 +35,19 @@ export async function loadCompanyTrucks(db: Db, companyId?: string): Promise<Com
   let q = db.selectFrom('companies')
     .innerJoin('company_trucks as ct', 'ct.company_id', 'companies.id')
     .innerJoin('truck_sizes as ts', 'ts.id', 'ct.truck_size_id')
-    .select(['companies.id', 'companies.name_en', 'ts.id as truck_size_id', 'ts.name', 'ts.capacity_m3', 'ct.price_halalas']);
+    .select(['companies.id', 'companies.name_en', 'companies.region', 'companies.city', 'companies.google_rating',
+      'ts.id as truck_size_id', 'ts.name', 'ts.capacity_m3', 'ct.price_halalas'])
+    // only companies that can take a booking (with staff accounts to accept and run the move)
+    .where('companies.bookable', '=', true);
   if (companyId) q = q.where('companies.id', '=', companyId);
   const rows = await q.execute();
 
   const byCompany = new Map<string, CompanyTrucks>();
   for (const r of rows) {
-    const c = byCompany.get(r.id) ?? { company_id: r.id, company_name: r.name_en, trucks: [] };
+    const c = byCompany.get(r.id) ?? {
+      company_id: r.id, company_name: r.name_en, region: r.region, city: r.city,
+      google_rating: r.google_rating === null ? null : Number(r.google_rating), trucks: [],
+    };
     c.trucks.push({ truck_size_id: r.truck_size_id, truck_name: r.name, capacity_m3: r.capacity_m3, price_halalas: r.price_halalas });
     byCompany.set(r.id, c);
   }

@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
@@ -17,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -40,31 +45,32 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
             ProfileData(s.await(), tp.await())
         }
     }
-    var edit by remember { mutableStateOf(false) }
     var help by remember { mutableStateOf(false) }
     AppScreen(t("الملف الشخصي", "Profile"), bottomBar = bottom, actions = {
         IconButton({ nav.navigate("settings") }) { Icon(Icons.Outlined.Settings, t("الإعدادات", "Settings")) }
     }) { pad ->
         RefreshList(loader, pad) { d ->
+            // the account card: who you are + everything about the account (details, password)
             item {
                 SectionCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), Alignment.Center) {
-                            Text(me.name.take(1).uppercase(), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-                        }
+                    Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { nav.navigate("account") }, verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(64)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(me.name, style = MaterialTheme.typography.titleLarge)
                             Text(roleName(me.role) + (me.company_name?.let { " · $it" } ?: ""), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                             Text(me.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            me.phone?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
-                        IconButton({ edit = true }) { Icon(Icons.Outlined.Edit, t("تعديل", "Edit")) }
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    d.stats.member_since?.let { Text(t("عضو منذ ", "Member since ") + dateText(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    MenuRow(Icons.Outlined.Badge, t("المعلومات الشخصية", "Personal info"),
+                        sub = listOfNotNull(me.phone, d.stats.member_since?.let { t("عضو منذ ", "Member since ") + dateText(it) }).joinToString(" · ")) { nav.navigate("account") }
+                    MenuRow(Icons.Outlined.Lock, if (d.stats.has_password) t("تغيير كلمة المرور", "Change password") else t("تعيين كلمة مرور", "Set a password"),
+                        sub = if (d.stats.google_linked) t("مرتبط بحساب Google", "Linked to Google") else null) { nav.navigate("password") }
                 }
             }
-            item { StatsGrid(me.role, d) }
+            if (me.role == "agent") item { StatsGrid(me.role, d) }
             if (me.role == "agent" && d.tech != null) item {
                 SectionCard(title = t("آخر التقييمات", "Recent reviews"), icon = Icons.Outlined.Reviews) {
                     if (d.tech.recent_reviews.isEmpty()) Text(t("لا توجد تقييمات بعد.", "No reviews yet."))
@@ -73,11 +79,7 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
             }
             item {
                 SectionCard {
-                    if (me.role == "customer") {
-                        MenuRow(Icons.Outlined.Bookmarks, t("العناوين المحفوظة", "Saved addresses")) { nav.navigate("addresses") }
-                        MenuRow(Icons.Outlined.Inventory2, t("الأرشيف", "Archive") + if (d.stats.archived > 0) " (${d.stats.archived})" else "") { nav.navigate("archive") }
-                    }
-                    MenuRow(Icons.Outlined.Lock, if (d.stats.has_password) t("تغيير كلمة المرور", "Change password") else t("تعيين كلمة مرور", "Set a password")) { nav.navigate("password") }
+                    if (me.role == "customer") MenuRow(Icons.Outlined.Bookmarks, t("العناوين المحفوظة", "Saved addresses")) { nav.navigate("addresses") }
                     MenuRow(Icons.Outlined.Settings, t("الإعدادات: اللغة والمظهر", "Settings: language & theme")) { nav.navigate("settings") }
                     MenuRow(Icons.AutoMirrored.Outlined.HelpOutline, t("المساعدة والأسئلة الشائعة", "Help & FAQ")) { help = true }
                     MenuRow(Icons.AutoMirrored.Outlined.Logout, t("تسجيل الخروج", "Sign out"), danger = true) {
@@ -85,12 +87,8 @@ fun ProfileScreen(nav: NavHostController, bottom: @Composable () -> Unit) {
                     }
                 }
             }
-            if (d.stats.google_linked) item {
-                Text(t("حسابك مرتبط بـ Google.", "Your account is linked to Google."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
         }
     }
-    if (edit) EditProfileDialog { edit = false }
     if (help) AlertDialog(onDismissRequest = { help = false }, confirmButton = { TextButton({ help = false }) { Text(t("إغلاق", "Close")) } },
         title = { Text(t("الأسئلة الشائعة", "FAQ")) },
         text = {
@@ -139,43 +137,67 @@ private fun StatsGrid(role: String, d: ProfileData) {
 }
 
 @Composable
-private fun MenuRow(icon: ImageVector, text: String, danger: Boolean = false, onClick: () -> Unit) {
+private fun MenuRow(icon: ImageVector, text: String, danger: Boolean = false, sub: String? = null, onClick: () -> Unit) {
     val color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     ListItem(
         headlineContent = { Text(text, color = color) },
+        supportingContent = if (sub.isNullOrBlank()) null else ({ Text(sub, style = MaterialTheme.typography.bodySmall) }),
         leadingContent = { Icon(icon, null, tint = if (danger) color else MaterialTheme.colorScheme.primary) },
-        trailingContent = { if (!danger) Icon(Icons.Outlined.ChevronRight, null) },
+        trailingContent = { if (!danger) Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null) },
         modifier = Modifier.clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
     )
 }
 
+/** profile picture: a person icon */
 @Composable
-private fun EditProfileDialog(onClose: () -> Unit) {
+fun Avatar(size: Int) {
+    Box(Modifier.size(size.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), Alignment.Center) {
+        Icon(Icons.Outlined.Person, null, Modifier.size((size * 0.58f).dp), tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** the account page (opened from the profile card): picture, name, phone, email, and security */
+@Composable
+fun AccountScreen(nav: NavHostController) {
     val me = Session.me!!
     var name by remember { mutableStateOf(me.name) }
     var phone by remember { mutableStateOf(me.phone ?: "") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var saved by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    AlertDialog(onDismissRequest = onClose, title = { Text(t("تعديل الملف", "Edit profile")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it.take(100) }, label = { Text(t("الاسم", "Name")) }, singleLine = true)
-                OutlinedTextField(phone, { phone = it.filter { c -> c.isDigit() || c == '+' || c == ' ' }.take(20) }, label = { Text(t("رقم الجوال", "Mobile number")) }, singleLine = true,
-                    placeholder = { Text("+966 5X XXX XXXX") })
-                ErrorNote(error)
+    val changed = name.trim() != me.name || phone.trim() != (me.phone ?: "")
+    AppScreen(t("المعلومات الشخصية", "Personal info"), onBack = { nav.popBackStack() }) { pad ->
+        Column(Modifier.padding(pad).fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Avatar(104)
+                Spacer(Modifier.height(8.dp))
+                Text(roleName(me.role) + (me.company_name?.let { " · $it" } ?: ""), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
-        },
-        confirmButton = {
-            TextButton({
-                busy = true
-                scope.launch {
-                    try { Api.patchMe(name.trim(), phone.trim().ifBlank { null }); Session.me = Api.me(); onClose() } catch (e: Exception) { error = errorText(e) } finally { busy = false }
-                }
-            }, enabled = !busy && name.isNotBlank()) { Text(t("حفظ", "Save")) }
-        },
-        dismissButton = { TextButton(onClose) { Text(t("إلغاء", "Cancel")) } })
+            SectionCard(title = t("البيانات", "Details"), icon = Icons.Outlined.Badge) {
+                OutlinedTextField(name, { name = it.take(100); saved = false }, Modifier.fillMaxWidth(), label = { Text(t("الاسم", "Name")) }, singleLine = true,
+                    leadingIcon = { Icon(Icons.Outlined.Person, null) })
+                OutlinedTextField(phone, { phone = it.filter { c -> c.isDigit() || c == '+' || c == ' ' }.take(20); saved = false }, Modifier.fillMaxWidth(),
+                    label = { Text(t("رقم الجوال", "Mobile number")) }, singleLine = true, placeholder = { Text("+966 5X XXX XXXX") },
+                    leadingIcon = { Icon(Icons.Outlined.Phone, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                OutlinedTextField(me.email, {}, Modifier.fillMaxWidth(), label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, readOnly = true, enabled = false,
+                    leadingIcon = { Icon(Icons.Outlined.Email, null) })
+                ErrorNote(error)
+                if (saved) Text(t("تم الحفظ.", "Saved."), color = MaterialTheme.colorScheme.primary)
+                PrimaryButton(t("حفظ التغييرات", "Save changes"), {
+                    busy = true; error = null
+                    scope.launch {
+                        try { Api.patchMe(name.trim(), phone.trim().ifBlank { null }); Session.me = Api.me(); saved = true } catch (e: Exception) { error = errorText(e) } finally { busy = false }
+                    }
+                }, Modifier.fillMaxWidth(), enabled = changed && name.isNotBlank(), busy = busy)
+            }
+            SectionCard(title = t("الأمان", "Security"), icon = Icons.Outlined.Shield) {
+                MenuRow(Icons.Outlined.Lock, t("كلمة المرور", "Password")) { nav.navigate("password") }
+            }
+        }
+    }
 }
 
 @Composable
@@ -258,6 +280,7 @@ fun AddressesScreen(nav: NavHostController) {
 fun PasswordScreen(nav: NavHostController) {
     var current by remember { mutableStateOf("") }
     var next by remember { mutableStateOf("") }
+    var again by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -267,16 +290,20 @@ fun PasswordScreen(nav: NavHostController) {
             OutlinedTextField(current, { current = it }, Modifier.fillMaxWidth(), label = { Text(t("كلمة المرور الحالية", "Current password")) },
                 singleLine = true, visualTransformation = PasswordVisualTransformation(),
                 supportingText = { Text(t("اتركها فارغة إن كان حسابك عبر Google فقط.", "Leave empty if you only use Google.")) })
-            OutlinedTextField(next, { next = it }, Modifier.fillMaxWidth(), label = { Text(t("كلمة المرور الجديدة (٨+)", "New password (8+)")) },
+            OutlinedTextField(next, { next = it; done = false }, Modifier.fillMaxWidth(), label = { Text(t("كلمة المرور الجديدة (٨+)", "New password (8+)")) },
                 singleLine = true, visualTransformation = PasswordVisualTransformation())
+            val mismatch = again.isNotEmpty() && again != next
+            OutlinedTextField(again, { again = it }, Modifier.fillMaxWidth(), label = { Text(t("تأكيد كلمة المرور الجديدة", "Confirm new password")) },
+                singleLine = true, visualTransformation = PasswordVisualTransformation(), isError = mismatch,
+                supportingText = if (mismatch) ({ Text(t("كلمتا المرور غير متطابقتين", "The passwords don't match")) }) else null)
             ErrorNote(error)
             if (done) Text(t("تم تغيير كلمة المرور.", "Password changed."), color = MaterialTheme.colorScheme.primary)
             PrimaryButton(t("حفظ", "Save"), {
                 busy = true; error = null
                 scope.launch {
-                    try { Api.changePassword(current.ifBlank { null }, next); done = true; current = ""; next = "" } catch (e: Exception) { error = errorText(e) } finally { busy = false }
+                    try { Api.changePassword(current.ifBlank { null }, next); done = true; current = ""; next = ""; again = "" } catch (e: Exception) { error = errorText(e) } finally { busy = false }
                 }
-            }, Modifier.fillMaxWidth(), enabled = next.length >= 8, busy = busy)
+            }, Modifier.fillMaxWidth(), enabled = next.length >= 8 && again == next, busy = busy)
         }
     }
 }

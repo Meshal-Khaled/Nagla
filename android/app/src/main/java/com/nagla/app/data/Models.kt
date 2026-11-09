@@ -39,8 +39,21 @@ import kotlinx.serialization.Serializable
     val volume_m3: Double = 0.0, val weight_kg: Double = 0.0, val fragile: Boolean = false, val dismantle_minutes: Int = 0,
 )
 
-@Serializable data class Detection(val id: String, val item_id: String? = null, val category: String)
-@Serializable data class Photo(val id: String, val room: String, val url: String, val detections: List<Detection> = emptyList())
+@Serializable data class Box(val x: Double, val y: Double, val w: Double, val h: Double)
+/** one sighting of an item in a photo; cell = 3x3 grid cell holding it (1 top-left … 9 bottom-right) */
+@Serializable data class Detection(
+    val id: String, val item_id: String? = null, val category: String, val confidence: Double? = null,
+    val cell: Int? = null, val label: String? = null, val box: Box? = null,
+)
+@Serializable data class Photo(
+    val id: String, val room: String, val url: String, val width: Int? = null, val height: Int? = null,
+    val scanned: Boolean = false, val created_at: String? = null, val detections: List<Detection> = emptyList(),
+)
+/** what the vision model and the filter answered for one room (debugging a scan) */
+@Serializable data class AiRun(
+    val id: String, val room: String, val vision_raw: String, val vision_items: Int, val filter_raw: String? = null,
+    val filter_error: String? = null, val kept_items: Int, val created_at: String,
+)
 
 @Serializable data class LockedQuote(
     val truck_name: String? = null, val truck_capacity_m3: Double = 0.0, val trips: Int = 1, val crew_size: Int = 2,
@@ -61,10 +74,14 @@ import kotlinx.serialization.Serializable
 )
 
 @Serializable data class Offer(
-    val company_id: String, val company_name: String, val truck_name: String, val truck_capacity_m3: Double,
+    val company_id: String, val company_name: String, val company_city: String? = null, val google_rating: Double? = null,
+    val truck_name: String, val truck_capacity_m3: Double,
     val trips: Int, val crew_size: Int, val estimated_minutes: Int, val volume_m3: Double, val price_halalas: Long,
 )
-@Serializable data class Offers(val locked: Boolean = false, val offers: List<Offer> = emptyList())
+@Serializable data class Offers(
+    val locked: Boolean = false, val offers: List<Offer> = emptyList(),
+    val volume_m3: Double? = null, val raw_volume_m3: Double? = null, val companies_checked: Int = 0,
+)
 
 @Serializable data class Job(val id: String, val status: String, val error: String? = null)
 @Serializable data class PlanStarted(val job_id: String, val status: String)

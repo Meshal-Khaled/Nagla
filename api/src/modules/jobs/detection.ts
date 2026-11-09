@@ -15,6 +15,7 @@ export async function runDetection({ db, storage, ai, catalog }: Pick<Deps, 'db'
   const rooms = [...new Set(photos.map((p) => p.room))].sort();
 
   const results: DetectRoomResponse[] = [];
+  const runs: { room: string; photoIds: string[]; debug: DetectRoomResponse['debug']; kept: number }[] = [];
   for (const room of rooms) {
     const roomPhotos = photos.filter((p) => p.room === room);
     const res = await ai.detectRoom({
@@ -30,6 +31,7 @@ export async function runDetection({ db, storage, ai, catalog }: Pick<Deps, 'db'
       .map((it) => ({ ...it, sightings: it.sightings.filter((s) => ids.has(s.photo_id)) }))
       .filter((it) => it.sightings.length);
     results.push({ ...res, room });
+    runs.push({ room, photoIds: [...ids], debug: res.debug ?? null, kept: res.items.length });
   }
 
   await db.transaction().execute(async (trx) => {
@@ -58,8 +60,17 @@ export async function runDetection({ db, storage, ai, catalog }: Pick<Deps, 'db'
           box_y: s.box?.y ?? null,
           box_w: s.box?.w ?? null,
           box_h: s.box?.h ?? null,
+          cell: s.cell ?? null,
+          label: it.label ? it.label.slice(0, 80) : null,
         }))).execute();
       }
+    }
+    for (const r of runs) {
+      await trx.insertInto('ai_runs').values({
+        move_id: moveId, room: r.room, photo_ids: r.photoIds, kept_items: r.kept,
+        vision_raw: r.debug?.vision_raw ?? '', vision_items: r.debug?.vision_items ?? r.kept,
+        filter_raw: r.debug?.filter_raw ?? null, filter_error: r.debug?.filter_error ?? null,
+      }).execute();
     }
     await trx.updateTable('moves').set({ updated_at: new Date() }).where('id', '=', moveId).execute();
   });

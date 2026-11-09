@@ -92,6 +92,10 @@ val ROOMS = listOf(
     "dining_room" to ("غرفة الطعام" to "Dining room"),
     "office" to ("المكتب" to "Office"),
     "storage" to ("المخزن" to "Storage"),
+    "bathroom" to ("دورة المياه" to "Bathroom"),
+    "kids_room" to ("غرفة الأطفال" to "Kids' room"),
+    "laundry" to ("غرفة الغسيل" to "Laundry"),
+    "outdoor" to ("الحوش والسطح" to "Yard & roof"),
 )
 fun roomName(k: String) = ROOMS.firstOrNull { it.first == k }?.second?.let { t(it.first, it.second) } ?: k.replace('_', ' ')
 
@@ -124,14 +128,23 @@ fun dateTimeText(iso: String?): String {
     return runCatching {
         val i = java.time.OffsetDateTime.parse(iso).atZoneSameInstant(java.time.ZoneId.systemDefault())
         val loc = if (com.nagla.app.data.Prefs.lang == "ar") java.util.Locale("ar") else java.util.Locale.ENGLISH
-        i.format(java.time.format.DateTimeFormatter.ofPattern("d MMM, HH:mm", loc))
+        i.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", loc)) + "، " + time12("%02d:%02d".format(java.util.Locale.US, i.hour, i.minute))
     }.getOrDefault(iso)
 }
 
 fun dateLine(from: String?, to: String?, time: String?): String =
     (if (from == null) t("لم يُحدد الموعد", "No date yet") else dateText(from)) +
         (if (to != null && to != from) " – " + dateText(to) else "") +
-        (if (!time.isNullOrBlank()) " · " + time.take(5) else "")
+        (if (!time.isNullOrBlank()) " · " + time12(time) else "")
+
+/** "15:30" → "3:30 PM" / "3:30 م" (12-hour clock everywhere in the app) */
+fun time12(hhmm: String): String {
+    val h = hhmm.take(2).toIntOrNull() ?: return hhmm
+    val m = hhmm.drop(3).take(2).toIntOrNull() ?: 0
+    val am = h < 12
+    val h12 = if (h % 12 == 0) 12 else h % 12
+    return String.format(java.util.Locale.US, "%d:%02d ", h12, m) + if (am) t("ص", "AM") else t("م", "PM")
+}
 
 fun errorText(e: Throwable): String {
     val code = (e as? com.nagla.app.data.ApiException)?.code
@@ -152,3 +165,12 @@ fun errorText(e: Throwable): String {
         else -> e.message?.takeIf { it.isNotBlank() && it != code } ?: t("حدث خطأ. حاول مجدداً.", "Something went wrong. Try again.")
     }
 }
+
+/** truck size names from the API ("small" …) in the app's language */
+fun truckName(name: String?): String = when (name) {
+    "small" -> t("صغيرة", "Small"); "medium" -> t("متوسطة", "Medium"); "large" -> t("كبيرة", "Large")
+    null -> ""; else -> name
+}
+
+/** "1 trip" / "2 trips" */
+fun tripsText(n: Int): String = if (n == 1) t("رحلة واحدة", "1 trip") else t("$n رحلات", "$n trips")

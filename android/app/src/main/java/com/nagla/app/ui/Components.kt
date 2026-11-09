@@ -134,8 +134,9 @@ fun ErrorNote(text: String?) {
 
 @Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, busy: Boolean = false, icon: ImageVector? = null) {
-    Button(onClick = onClick, enabled = enabled && !busy, modifier = modifier.heightIn(min = 52.dp), shape = MaterialTheme.shapes.medium) {
-        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+    Button(onClick = onClick, enabled = enabled && !busy, modifier = modifier.heightIn(min = 54.dp), shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(containerColor = Brand.Lime, contentColor = Brand.Navy)) {
+        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Brand.Navy)
         else { if (icon != null) { Icon(icon, null); Spacer(Modifier.width(8.dp)) }; Text(text) }
     }
 }
@@ -202,31 +203,28 @@ fun StageTimeline(stages: List<String>, current: String?, skipped: Set<String> =
     }
 }
 
-// ---------- the 3-way "box" slider for an item: Sell | Move | Donate, drag or tap
+// ---------- the 3-way "box" slider for an item: Move | Sell | Donate, drag or tap; the navy lid lands on the choice
 
 @Composable
 fun DecisionSlider(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    val options = listOf("sell", "keep", "donate")
+    val options = listOf("keep", "sell", "donate")
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     var width by remember { mutableIntStateOf(0) }
     val segment = if (width == 0) 0f else width / 3f
-    val target = options.indexOf(value).coerceAtLeast(1)
-    val offset = remember { Animatable(target.toFloat()) }
+    val offset = remember { Animatable(options.indexOf(value).coerceAtLeast(0).toFloat()) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(value) { offset.animateTo(options.indexOf(value).coerceAtLeast(0).toFloat(), spring(dampingRatio = 0.7f)) }
-
-    val colors = mapOf("sell" to Color(0xFFFFE0B2), "keep" to MaterialTheme.colorScheme.primaryContainer, "donate" to Color(0xFFDCEDC8))
-    val icons = mapOf("sell" to Icons.Outlined.Sell, "keep" to Icons.Outlined.LocalShipping, "donate" to Icons.Outlined.VolunteerActivism)
+    LaunchedEffect(value) { offset.animateTo(options.indexOf(value).coerceAtLeast(0).toFloat(), spring(dampingRatio = 0.75f)) }
+    val icons = mapOf("sell" to Icons.Outlined.Sell, "keep" to Icons.Outlined.LocalShipping, "donate" to Icons.Outlined.FavoriteBorder)
 
     Box(
-        modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+        modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.background)
             .onSizeChanged { width = it.width }
             .pointerInput(width) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
                         val i = offset.value.roundToInt().coerceIn(0, 2)
-                        scope.launch { offset.animateTo(i.toFloat(), spring(dampingRatio = 0.7f)) }
+                        scope.launch { offset.animateTo(i.toFloat(), spring(dampingRatio = 0.75f)) }
                         if (options[i] != value) onChange(options[i])
                     },
                 ) { change, drag ->
@@ -235,30 +233,29 @@ fun DecisionSlider(value: String, onChange: (String) -> Unit, modifier: Modifier
                 }
             },
     ) {
-        // the three compartments of the box
+        // the three compartments
         Row(Modifier.fillMaxSize()) {
             options.forEach { o ->
-                Box(Modifier.weight(1f).fillMaxHeight().clickable { onChange(o) }, contentAlignment = Alignment.Center) {
+                Row(Modifier.weight(1f).fillMaxHeight().clickable { onChange(o) }, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(icons[o]!!, null, Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        // the sliding box lid
+        // the sliding lid (Modifier.offset is RTL-aware: index 0 is the start side in both directions)
         if (segment > 0) {
             val x = (offset.value * segment).roundToInt()
-            Box(
-                Modifier.offset { IntOffset(if (rtl) width - x - segment.roundToInt() else x, 0) }
+            val o = options[offset.value.roundToInt().coerceIn(0, 2)]
+            Row(
+                Modifier.offset { IntOffset(x, 0) }
                     .width(with(androidx.compose.ui.platform.LocalDensity.current) { segment.toDp() }).fillMaxHeight().padding(4.dp)
-                    .clip(RoundedCornerShape(11.dp)).background(colors[options[offset.value.roundToInt().coerceIn(0, 2)]] ?: Color.White)
-                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(11.dp)),
-                contentAlignment = Alignment.Center,
+                    .clip(RoundedCornerShape(12.dp)).background(Brand.Navy),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
-                val o = options[offset.value.roundToInt().coerceIn(0, 2)]
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icons[o]!!, null, Modifier.size(18.dp), tint = Brand.Navy)
-                    Spacer(Modifier.width(6.dp))
-                    Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = Brand.Navy, fontWeight = FontWeight.Bold)
-                }
+                Text(dispositionName(o), style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Outlined.Check, null, Modifier.size(17.dp), tint = Color.White)
             }
         }
     }
@@ -293,16 +290,19 @@ fun ScanAnimation(modifier: Modifier = Modifier) {
         rotate(80f * lid, Offset(left + boxW, top)) {
             drawRoundRect(teal, Offset(left + boxW - flap, top - 10f), Size(flap, 12f), CornerRadius(6f))
         }
-        // the spyglass sweeping over the opening
-        val gx = w / 2 + sweep * boxW * 0.32f
-        val gy = top - w * 0.14f - lid * w * 0.04f
+        // the spyglass sweeping over the opening: lens centred on (gx, gy), handle attached to its rim
         val r = w * 0.11f
+        val gx = w / 2 + sweep * boxW * 0.28f - r * 0.4f
+        val gy = top - r * 0.9f - lid * r * 0.4f
         translate(gx, gy) {
-            drawCircle(glass, r)
-            drawCircle(navy, r, style = Stroke(7f))
-            drawCircle(teal.copy(alpha = 0.25f), r * 0.7f)
-            val handle = Path().apply { moveTo(r * 0.7f, r * 0.7f); lineTo(r * 1.65f, r * 1.65f) }
-            drawPath(handle, navy, style = Stroke(11f, cap = StrokeCap.Round))
+            val c = Offset.Zero
+            val rim = r * 0.71f // cos 45° × r: where the handle leaves the lens
+            drawLine(navy, Offset(rim, rim), Offset(r * 1.75f, r * 1.75f), 12f, cap = StrokeCap.Round)
+            drawCircle(glass, r, c)
+            drawCircle(teal.copy(alpha = 0.25f), r * 0.72f, c)
+            drawCircle(navy, r, c, style = Stroke(7f))
+            // a small shine on the glass
+            drawArc(Color.White.copy(alpha = 0.8f), 200f, 60f, false, Offset(-r * 0.6f, -r * 0.6f), Size(r * 1.2f, r * 1.2f), style = Stroke(4f, cap = StrokeCap.Round))
         }
     }
 }

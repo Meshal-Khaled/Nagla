@@ -23,7 +23,7 @@ DEFAULT_ITEMS = [("moving_box", "medium"), ("moving_box", "medium"), ("other", "
 class FakeProvider:
     name = "fake"
 
-    async def complete(self, *, prompt: str, images: list[RoomImage], feedback: str | None = None) -> str:
+    async def complete(self, *, prompt: str, images: list[RoomImage], feedback: str | None = None, schema: dict | None = None) -> str:
         room = _room_from_prompt(prompt)
         if "garbage" in room:
             return "Sorry, I can't produce JSON for this room."
@@ -37,7 +37,7 @@ class FakeProvider:
             # the first item also shows up in a second photo: the model reports it once
             if n == 0 and len(ids) > 1:
                 sightings.append({"photo_id": ids[1], "box": _box(n + 3)})
-            out.append({"category": category, "size_class": size, "confidence": round(0.95 - n * 0.05, 2), "sightings": sightings})
+            out.append({"label": category.replace("_", " "), "category": category, "size_class": size, "confidence": round(0.95 - n * 0.05, 2), "sightings": sightings})
         return json.dumps({"items": out})
 
 

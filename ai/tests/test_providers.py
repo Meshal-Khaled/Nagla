@@ -99,3 +99,25 @@ async def test_gemini_http_error_raises_provider_error():
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def test_filter_never_merges_two_objects_in_the_same_photo():
+    res = DetectRoomResponse.model_validate({"room": "living", "items": [
+        {"category": "couch", "size_class": "medium", "sightings": [{"photo_id": "p1"}]},
+        {"category": "couch", "size_class": "medium", "sightings": [{"photo_id": "p1"}]},
+    ]})
+    out = apply_decisions(res, meta(), json.dumps({"keep": [{"index": 0, "merge": [1]}, {"index": 1}]}))
+    assert len(out.items) == 2
+
+
+def test_gemini_sends_the_response_schema():
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "{}"}]}}]})
+
+    import asyncio
+    p = GeminiProvider(api_key="k", transport=httpx.MockTransport(handler))
+    asyncio.run(p.complete(prompt="x", images=[], schema={"type": "OBJECT"}))
+    assert seen["body"]["generationConfig"]["responseSchema"] == {"type": "OBJECT"}

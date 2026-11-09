@@ -40,8 +40,8 @@ export async function confirmMove(deps: Deps, moveId: string, user: AuthUser, co
     const items = await loadEstimateItems(trx, deps.catalog, moveId);
     if (!items.some((i) => i.disposition === 'keep')) throw badRequest('nothing_to_move', 'No items marked keep');
 
-    const [offer] = estimate(items, await loadCompanyTrucks(trx, companyId), await loadSettings(trx));
-    if (!offer) throw badRequest('company_unavailable', 'This company has no trucks');
+    const offer = estimate(items, await loadCompanyTrucks(trx), await loadSettings(trx)).find((o) => o.company_id === companyId);
+    if (!offer) throw badRequest('company_unavailable', "This company can't take this move (no truck big enough for its volume)");
 
     // copy the catalog row onto each item: later catalog edits never change this move
     const rows = await trx.selectFrom('move_items').select(['id', 'catalog_id', 'volume_m3_snapshot', 'catalog_snapshot'])

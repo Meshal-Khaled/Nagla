@@ -59,8 +59,10 @@ export function defaultDetect(req: DetectRoomRequest): DetectRoomResponse {
       category,
       size_class,
       confidence: 0.9,
-      sightings: [{ photo_id: ids[n % ids.length], box: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 } }],
+      label: category.replace(/_/g, ' '),
+      sightings: [{ photo_id: ids[n % ids.length], box: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, cell: 1 }],
     })),
+    debug: { vision_raw: JSON.stringify({ items: items.map(([category]) => ({ category })) }), vision_items: items.length },
   };
 }
 

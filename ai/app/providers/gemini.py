@@ -27,23 +27,23 @@ class GeminiProvider:
         self.timeout = env_float("GEMINI_TIMEOUT_S", 60)
         self.transport = transport
 
-    def _body(self, prompt: str, images: list[RoomImage], feedback: str | None) -> dict:
+    def _body(self, prompt: str, images: list[RoomImage], feedback: str | None, schema: dict | None = None) -> dict:
         parts: list[dict] = [{"text": prompt}]
         for img in images:
             parts.append({"text": f"Photo id: {img.photo_id}"})
             parts.append({"inline_data": {"mime_type": img.media_type, "data": base64.b64encode(img.data).decode()}})
         if feedback:
             parts.append({"text": feedback})
-        return {
-            "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
-        }
+        config: dict = {"temperature": 0, "responseMimeType": "application/json"}
+        if schema:
+            config["responseSchema"] = schema  # structured output: the reply must match the schema
+        return {"contents": [{"role": "user", "parts": parts}], "generationConfig": config}
 
-    async def complete(self, *, prompt: str, images: list[RoomImage], feedback: str | None = None) -> str:
+    async def complete(self, *, prompt: str, images: list[RoomImage], feedback: str | None = None, schema: dict | None = None) -> str:
         url = f"{self.base_url}/models/{self.model}:generateContent"
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
             try:
-                r = await client.post(url, headers={"x-goog-api-key": self.api_key}, json=self._body(prompt, images, feedback))
+                r = await client.post(url, headers={"x-goog-api-key": self.api_key}, json=self._body(prompt, images, feedback, schema))
             except httpx.HTTPError as e:
                 raise ProviderError(f"Gemini unreachable: {e}") from e
         if r.status_code != 200:

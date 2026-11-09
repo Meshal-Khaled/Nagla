@@ -1,4 +1,5 @@
 // Pure, deterministic estimate: same inventory + prices + settings → same offers. No AI.
+// The packed volume decides which companies can take the move (see the end of estimate()).
 
 export interface EstimateItem {
   quantity: number;
@@ -10,6 +11,9 @@ export interface EstimateItem {
 export interface CompanyTrucks {
   company_id: string;
   company_name: string;
+  region?: string | null;
+  city?: string | null;
+  google_rating?: number | null;
   trucks: { truck_size_id: string; truck_name: string; capacity_m3: number; price_halalas: number }[];
 }
 
@@ -22,6 +26,8 @@ export interface EstimateSettings {
 export interface Offer {
   company_id: string;
   company_name: string;
+  company_city: string | null;
+  google_rating: number | null;
   truck_size_id: string;
   truck_name: string;
   truck_capacity_m3: number;
@@ -54,6 +60,8 @@ export function estimate(items: EstimateItem[], companies: CompanyTrucks[], s: E
     offers.push({
       company_id: c.company_id,
       company_name: c.company_name,
+      company_city: c.city ?? null,
+      google_rating: c.google_rating ?? null,
       truck_size_id: truck.truck_size_id,
       truck_name: truck.truck_name,
       truck_capacity_m3: truck.capacity_m3,
@@ -65,5 +73,17 @@ export function estimate(items: EstimateItem[], companies: CompanyTrucks[], s: E
       price_halalas: truck.price_halalas * trips,
     });
   }
-  return offers.sort((a, b) => a.price_halalas - b.price_halalas || a.company_name.localeCompare(b.company_name));
+  // The volume picks the companies: only those with a truck that carries the whole move in one trip are offered.
+  // When no company has a truck that big, the companies needing the fewest trips are offered instead.
+  const oneTrip = offers.filter((o) => o.trips === 1);
+  const fewest = Math.min(...offers.map((o) => o.trips));
+  const chosen = oneTrip.length ? oneTrip : offers.filter((o) => o.trips === fewest);
+  return chosen.sort((a, b) => a.price_halalas - b.price_halalas || a.company_name.localeCompare(b.company_name));
+}
+
+/** what the customer sees above the offers: the move's volume and how many companies could take it */
+export function volumeSummary(items: EstimateItem[], s: EstimateSettings) {
+  const keep = items.filter((i) => i.disposition === 'keep');
+  const raw = round3(keep.reduce((sum, i) => sum + i.volume_m3 * i.quantity, 0));
+  return { raw_volume_m3: raw, volume_m3: round3(raw * s.packing_factor) };
 }

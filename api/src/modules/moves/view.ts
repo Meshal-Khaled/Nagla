@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import type { Deps } from '../../deps.js';
 import { itemCatalog } from '../catalog/store.js';
 import { progress, type Stage } from '../tracking/stages.js';
@@ -7,7 +8,7 @@ import type { MoveRow } from './access.js';
 export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 'storage' | 'catalog'>, move: MoveRow) {
   const { agent_token_hash: _hash, ...fields } = move;
 
-  const [items, photos, detections, quote, company, people] = await Promise.all([
+  const [items, photos, detections, quote, company, people, scannedRows] = await Promise.all([
     db.selectFrom('move_items')
       .select(['id', 'label', 'category', 'seq', 'quantity', 'disposition', 'source', 'catalog_id', 'custom_name',
         'volume_m3_snapshot', 'catalog_snapshot'])
@@ -17,7 +18,7 @@ export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 's
       .where('move_id', '=', move.id).orderBy('room').orderBy('created_at').execute(),
     db.selectFrom('detections').innerJoin('photos', 'photos.id', 'detections.photo_id')
       .select(['detections.id', 'detections.photo_id', 'detections.item_id', 'detections.category', 'detections.size_class',
-        'detections.confidence', 'detections.box_x', 'detections.box_y', 'detections.box_w', 'detections.box_h'])
+        'detections.confidence', 'detections.cell', 'detections.label', 'detections.box_x', 'detections.box_y', 'detections.box_w', 'detections.box_h'])
       .where('photos.move_id', '=', move.id).execute(),
     db.selectFrom('quotes').innerJoin('truck_sizes as t', 't.id', 'quotes.truck_size_id')
       .selectAll('quotes').select('t.name as truck_name')
@@ -28,7 +29,10 @@ export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 's
     // the customer and the assigned technician, by name (for the tracking and company screens)
     db.selectFrom('users').select(['id', 'name', 'role'])
       .where('id', 'in', [move.customer_id, ...(move.assigned_agent_id ? [move.assigned_agent_id] : [])]).execute(),
+    // photos a scan already looked at (each run lists the photos it was given)
+    db.selectFrom('ai_runs').select(sql<string>`unnest(photo_ids)::text`.as('photo_id')).where('move_id', '=', move.id).execute(),
   ]);
+  const scanned = new Set(scannedRows.map((r) => r.photo_id));
   const person = (id: string | null) => {
     const u = id ? people.find((p) => p.id === id) : undefined;
     return u ? { id: u.id, name: u.name } : null;
@@ -52,12 +56,15 @@ export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 's
     photos: photos.map((p) => ({
       ...p,
       url: storage.signedUrl('photo', p.id),
+      scanned: scanned.has(p.id) || detections.some((d) => d.photo_id === p.id),
       detections: detections.filter((d) => d.photo_id === p.id).map((d) => ({
         id: d.id,
         item_id: d.item_id,
         category: d.category,
         size_class: d.size_class,
         confidence: d.confidence,
+        cell: d.cell,
+        label: d.label,
         box: d.box_x === null ? null : { x: d.box_x, y: d.box_y, w: d.box_w, h: d.box_h },
       })),
     })),

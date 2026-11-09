@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-title="نقلة · صفحة الفني|Naqla · Technician page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نقلة · صفحة الفني</title>
+  <link rel="icon" href="naqla_mark.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- sign in -->
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <img src="logo_lockup.png" alt="نقلة Naqla" class="login-logo">
+      <h1 data-t="صفحة الفني|Technician page"></h1>
+      <p class="muted" data-t="سجّل الدخول بحساب الفني لتنفيذ المهام وتحديث مراحل النقل.|Sign in with your technician account to work your tasks and update the move stages."></p>
+      <label><span data-t="البريد الإلكتروني|Email"></span><input name="email" type="email" required autocomplete="username"></label>
+      <label><span data-t="كلمة المرور|Password"></span><input name="password" type="password" required autocomplete="current-password"></label>
+      <p id="login-error" class="error" hidden></p>
+      <button class="btn primary" type="submit" data-t="تسجيل الدخول|Sign in"></button>
+      <a class="link" href="index.html" data-t="أنا مدير الشركة|I'm the company admin"></a>
+      <button class="link lang-toggle" type="button"></button>
+    </form>
+  </main>
+
+  <div id="app" hidden>
+    <header class="topbar">
+      <img src="logo_lockup.png" alt="نقلة Naqla" class="topbar-logo">
+      <div class="topbar-company">
+        <strong id="tech-name"></strong>
+        <span class="muted" id="tech-company"></span>
+      </div>
+      <span class="live"><i></i><span data-t="تحديث تلقائي|Live"></span></span>
+      <button class="link lang-toggle" type="button"></button>
+      <button class="btn ghost" id="logout" type="button" data-t="تسجيل الخروج|Sign out"></button>
+    </header>
+
+    <div class="layout">
+      <section class="list-pane">
+        <div class="facts" id="summary"></div>
+        <nav class="tabs" role="tablist" style="margin-top:14px">
+          <button role="tab" data-scope="assigned"><span data-t="المُسندة|Assigned"></span><b class="count" id="count-assigned">0</b></button>
+          <button role="tab" data-scope="in_progress"><span data-t="قيد التنفيذ|In progress"></span><b class="count" id="count-in_progress">0</b></button>
+          <button role="tab" data-scope="completed"><span data-t="المكتملة|Completed"></span><b class="count" id="count-completed">0</b></button>
+        </nav>
+        <div id="list" class="list"></div>
+      </section>
+      <section class="detail-pane" id="detail">
+        <div class="empty">
+          <img src="naqla_mark.png" alt="" width="64">
+          <p data-t="اختر مهمة لعرضها وتحديث مراحلها.|Pick a task to open it and update its stages."></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="common.js"></script>
+  <script src="tech.js"></script>
+</body>
+</html>

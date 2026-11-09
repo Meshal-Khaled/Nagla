@@ -38,8 +38,8 @@ services:
     restart: unless-stopped
     env_file: api/.env
     environment: *api-env
-    # migrations + seed are idempotent; run on every start, then serve
-    command: sh -c "npx tsx src/db/migrate.ts latest && npx tsx src/db/seed/index.ts && exec npx tsx src/server.ts"
+    # migrations, seed and the companies dataset import are idempotent; run on every start, then serve
+    command: sh -c "npx tsx src/db/migrate.ts latest && npx tsx src/db/seed/index.ts && npx tsx src/db/seed/companies.ts && exec npx tsx src/server.ts"
     ports:
       - "127.0.0.1:4926:3000"
     volumes:

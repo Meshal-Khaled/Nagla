@@ -32,6 +32,20 @@ describe('detection job', () => {
     expect(status.status).toBe('done');
   });
 
+  it('stores the grid cell and label of each sighting and keeps the raw model output per room', async () => {
+    const { token, moveId } = await draftWithItems(ctx);
+    const move = await get(`/moves/${moveId}`, token);
+    const det = move.photos.flatMap((p: { detections: { cell: number; label: string }[] }) => p.detections)[0];
+    expect(det.cell).toBe(1);
+    expect(move.photos.every((p: { scanned: boolean }) => p.scanned)).toBe(true);
+    expect(typeof det.label).toBe('string');
+
+    const runs = await get(`/moves/${moveId}/ai-runs`, token);
+    expect(runs.map((r: { room: string }) => r.room).sort()).toEqual(['bedroom_1', 'living_room']);
+    expect(JSON.parse(runs[0].vision_raw).items.length).toBe(runs[0].vision_items);
+
+  });
+
   it('keeps manual items and numbers AI items after them', async () => {
     const { token, moveId } = await draftWithItems(ctx);
     const couch = (await get('/catalog?q=couch', token))[0];

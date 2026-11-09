@@ -37,14 +37,17 @@ suspend fun signIn(tokens: Tokens) {
     Session.me = Api.me()
 }
 
-/** Email + password first; customers can register; Google is the second option (native SDK). */
+/**
+ * One sign-in for everyone: the account decides the role (company and technician accounts are made in advance,
+ * so they are never offered here). Customers can register; Google is the second option (native SDK).
+ */
 @Composable
 fun AuthScreen() {
-    var role by remember { mutableStateOf("customer") }
     var register by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
     var showPw by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -102,16 +105,6 @@ fun AuthScreen() {
                 if (register) t("إنشاء حساب", "Create an account") else t("أهلاً بعودتك", "Welcome back"),
                 style = MaterialTheme.typography.headlineMedium,
             )
-            // who is signing in (same login for everyone; staff accounts come from their company)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf("customer" to t("عميل", "Customer"), "company" to t("شركة", "Company"), "tech" to t("فني", "Technician")).forEachIndexed { i, (k, label) ->
-                    SegmentedButton(selected = role == k, onClick = { role = k; if (k != "customer") register = false }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(label) }
-                }
-            }
-            if (role != "customer") Text(
-                t("تُنشئ شركة النقل حسابات موظفيها. استخدم البريد وكلمة المرور من شركتك.", "Your company creates staff accounts. Use the email and password your company gave you."),
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (register) OutlinedTextField(name, { name = it }, label = { Text(t("الاسم", "Name")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Outlined.Person, null) })
             OutlinedTextField(email, { email = it }, label = { Text(t("البريد الإلكتروني", "Email")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -121,15 +114,22 @@ fun AuthScreen() {
                 leadingIcon = { Icon(Icons.Outlined.Lock, null) },
                 trailingIcon = { IconButton({ showPw = !showPw }) { Icon(if (showPw) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) } },
                 visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = if (register) ImeAction.Next else ImeAction.Done),
+                supportingText = if (register) ({ Text(t("٨ أحرف على الأقل", "At least 8 characters")) }) else null)
+            val mismatch = register && confirm.isNotEmpty() && confirm != password
+            if (register) OutlinedTextField(confirm, { confirm = it }, label = { Text(t("تأكيد كلمة المرور", "Confirm password")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Outlined.Lock, null) },
+                visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                supportingText = { if (register) Text(t("٨ أحرف على الأقل", "At least 8 characters")) })
+                isError = mismatch,
+                supportingText = if (mismatch) ({ Text(t("كلمتا المرور غير متطابقتين", "The passwords don't match")) }) else null)
             ErrorNote(error)
             PrimaryButton(
                 if (register) t("إنشاء الحساب", "Create account") else t("تسجيل الدخول", "Sign in"), ::submit, Modifier.fillMaxWidth(),
-                enabled = email.isNotBlank() && password.isNotEmpty() && (!register || (name.isNotBlank() && password.length >= 8)), busy = busy,
+                enabled = email.isNotBlank() && password.isNotEmpty() && (!register || (name.isNotBlank() && password.length >= 8 && confirm == password)), busy = busy,
             )
-            if (role == "customer") {
-                TextButton({ register = !register; error = null }, Modifier.align(Alignment.CenterHorizontally)) {
+            run {
+                TextButton({ register = !register; error = null; confirm = "" }, Modifier.align(Alignment.CenterHorizontally)) {
                     Text(if (register) t("لدي حساب", "I have an account") else t("إنشاء حساب جديد", "Create an account"))
                 }
                 google?.let { clientId ->

@@ -142,6 +142,7 @@ object Api {
     suspend fun deletePhoto(id: String) { call("DELETE", "/photos/$id") }
     suspend fun plan(id: String): PlanStarted = post("/moves/$id/plan")
     suspend fun job(id: String): Job = get("/jobs/$id")
+    suspend fun aiRuns(moveId: String): List<AiRun> = get("/moves/$moveId/ai-runs")
     suspend fun catalog(q: String): List<CatalogRow> = get("/catalog" + if (q.isBlank()) "" else "?q=${enc(q)}")
     suspend fun addItem(moveId: String, catalogId: String) { call("POST", "/moves/$moveId/items", obj("catalog_id" to catalogId).body()) }
     suspend fun patchItem(id: String, body: JsonObject): MoveDetail = json.decodeFromString(call("PATCH", "/items/$id", body.body()))

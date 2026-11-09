@@ -13,6 +13,7 @@ class VisionProvider(Protocol):
     """A vision model behind an API. Returns the model's raw text (expected: strict JSON).
 
     `feedback` is set on the retry and explains why the previous answer was rejected.
+    `schema` is the structured-output schema; providers that support it constrain the reply to it.
     """
 
     name: str
@@ -23,4 +24,5 @@ class VisionProvider(Protocol):
         prompt: str,
         images: list[RoomImage],
         feedback: str | None = None,
+        schema: dict | None = None,
     ) -> str: ...

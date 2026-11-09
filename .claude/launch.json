@@ -12,6 +12,12 @@
       "runtimeExecutable": "ai/.venv/Scripts/python",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "ai", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "company-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["company-web/server.mjs"],
+      "port": 4930
     }
   ]
 }

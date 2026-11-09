@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -80,8 +81,7 @@ fun TaskScreen(nav: NavHostController, id: String) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var pendingStage by remember { mutableStateOf<String?>(null) }
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingStage by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun setStage(stage: String, photo: Uri?) {
         busy = stage; error = null
@@ -92,16 +92,13 @@ fun TaskScreen(nav: NavHostController, id: String) {
             } catch (e: Exception) { error = errorText(e) } finally { busy = null }
         }
     }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val s = pendingStage; pendingStage = null
-        if (s != null) setStage(s, if (ok) photoUri else null)
-    }
-    fun withPhoto(stage: String) {
-        val dir = File(context.cacheDir, "camera").apply { mkdirs() }
-        photoUri = FileProvider.getUriForFile(context, context.packageName + ".files", File(dir, "status-${System.currentTimeMillis()}.jpg"))
-        pendingStage = stage
-        camera.launch(photoUri!!)
-    }
+    // no photo (cancelled, or no camera permission) still sets the stage, as before
+    val camera = rememberCamera(
+        onPhoto = { uri -> val s = pendingStage; pendingStage = null; if (s != null) setStage(s, uri) },
+        onCancel = { val s = pendingStage; pendingStage = null; if (s != null) setStage(s, null) },
+        onError = { error = it },
+    )
+    fun withPhoto(stage: String) { pendingStage = stage; camera("status") }
 
     AppScreen(loader.data?.let { "#${it.move_no}" } ?: t("المهمة", "Task"), onBack = { nav.popBackStack() }) { pad ->
         RefreshList(loader, pad) { x ->
@@ -162,7 +159,7 @@ fun TaskScreen(nav: NavHostController, id: String) {
                     PlaceRow(t("التسليم", "Delivery"), x.dropoff)
                     HorizontalDivider()
                     InfoRow(t("الخدمات", "Services"), x.services.joinToString("، ") { serviceName(it) }, Icons.Outlined.Handyman)
-                    x.quote?.let { InfoRow(t("الشاحنة", "Truck"), "${it.truck_name} × ${it.trips} · " + t("عمال ", "crew ") + it.crew_size, Icons.Outlined.LocalShipping) }
+                    x.quote?.let { InfoRow(t("الشاحنة", "Truck"), truckName(it.truck_name) + " · " + tripsText(it.trips) + " · " + t("عمال ", "crew ") + it.crew_size, Icons.Outlined.LocalShipping) }
                     if (!x.notes.isNullOrBlank()) InfoRow(t("ملاحظات", "Notes"), x.notes, Icons.Outlined.StickyNote2)
                 }
             }

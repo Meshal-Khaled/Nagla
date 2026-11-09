@@ -52,10 +52,29 @@ export interface AuthCodes {
 }
 
 export interface Companies {
+  bookable: Generated<boolean>;
+  city: string | null;
   created_at: Generated<Timestamp>;
+  data_source: string | null;
+  dataset_no: number | null;
+  google_rating: number | null;
+  google_reviews: number | null;
   id: Generated<string>;
   name_ar: string;
   name_en: string;
+  phone: string | null;
+  region: string | null;
+  website: string | null;
+}
+
+export interface CompanyServicePrices {
+  company_id: string;
+  id: Generated<string>;
+  kind: string;
+  note: string | null;
+  price_halalas: number;
+  service: string;
+  truck_size_id: string | null;
 }
 
 export interface CompanyTrucks {
@@ -70,11 +89,26 @@ export interface Detections {
   box_x: number | null;
   box_y: number | null;
   category: string;
+  cell: number | null;
   confidence: number | null;
   id: Generated<string>;
   item_id: string | null;
+  label: string | null;
   photo_id: string;
   size_class: SizeClass;
+}
+
+export interface AiRuns {
+  created_at: Generated<Timestamp>;
+  filter_error: string | null;
+  filter_raw: string | null;
+  id: Generated<string>;
+  kept_items: number;
+  move_id: string;
+  photo_ids: string[];
+  room: string;
+  vision_items: number;
+  vision_raw: string;
 }
 
 export interface DeviceTokens {
@@ -250,6 +284,8 @@ export interface Users {
 }
 
 export interface DB {
+  company_service_prices: CompanyServicePrices;
+  ai_runs: AiRuns;
   auth_codes: AuthCodes;
   companies: Companies;
   company_trucks: CompanyTrucks;

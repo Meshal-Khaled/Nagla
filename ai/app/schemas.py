@@ -26,18 +26,31 @@ class Box(BaseModel):
 class Sighting(BaseModel):
     photo_id: str
     box: Box | None = None
+    # 3x3 grid cell of the photo holding the object's centre: 1 = top-left … 9 = bottom-right
+    cell: int | None = Field(default=None, ge=1, le=9)
 
 
 class DetectedItem(BaseModel):
     category: str
     size_class: SizeClass
     confidence: float | None = Field(default=None, ge=0, le=1)
+    label: str | None = None
     sightings: list[Sighting] = Field(min_length=1)
+
+
+class DetectDebug(BaseModel):
+    """What the models actually answered, kept so a scan can be debugged later."""
+
+    vision_raw: str
+    vision_items: int
+    filter_raw: str | None = None
+    filter_error: str | None = None
 
 
 class DetectRoomResponse(BaseModel):
     room: str
     items: list[DetectedItem]
+    debug: DetectDebug | None = None
 
 
 class ModelOutput(BaseModel):

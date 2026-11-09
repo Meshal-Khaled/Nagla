@@ -96,6 +96,7 @@ fun RoleShell(role: String) {
         composable("settings") { SettingsScreen(nav) }
         composable("addresses") { AddressesScreen(nav) }
         composable("password") { PasswordScreen(nav) }
+        composable("account") { AccountScreen(nav) }
         composable("chat/{id}") { ChatScreen(nav, it.arguments!!.getString("id")!!) }
         when (role) {
             "company_admin" -> {

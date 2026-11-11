@@ -47,8 +47,12 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import java.util.Locale
 
 /** one address being edited: the free text plus the structured parts the map fills in */
@@ -126,8 +130,20 @@ object Geo {
             }
         }
 
-    // OpenStreetMap raster tiles until the Hudhud map style (publishable key + map id) is configured
-    const val OSM_STYLE = """{"version":8,"sources":{"osm":{"type":"raster","tiles":["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],"tileSize":256,"maxzoom":19,"attribution":"© OpenStreetMap contributors"}},"layers":[{"id":"osm","type":"raster","source":"osm"}]}"""
+    // OpenFreeMap (free OpenStreetMap vector tiles, no key, made for apps) until the Hudhud style is configured.
+    // tile.openstreetmap.org is not for apps: it answers map libraries with blank tiles.
+    const val FREE_STYLE = "https://tiles.openfreemap.org/styles/liberty"
+
+    /** place names in the app's language (the free style shows Latin and Arabic together) */
+    fun localiseLabels(style: Style) {
+        val name = if (Prefs.lang == "ar")
+            Expression.coalesce(Expression.get("name:ar"), Expression.get("name"), Expression.get("name:latin"))
+        else Expression.coalesce(Expression.get("name:en"), Expression.get("name_en"), Expression.get("name:latin"), Expression.get("name"))
+        style.layers.filterIsInstance<SymbolLayer>().forEach { layer ->
+            // road shields show the road number ("ref"): leave those alone
+            if (layer.textField.expression?.toString()?.contains("name") == true) layer.setProperties(PropertyFactory.textField(name))
+        }
+    }
 }
 
 @SuppressLint("MissingPermission")
@@ -269,7 +285,10 @@ fun MapPicker(lat: Double?, lng: Double?, onDismiss: () -> Unit, onPick: (Double
                 val s = style
                 if (s != null) {
                     val context = LocalContext.current
-                    val view = remember { MapView(context).apply { onCreate(null) } }
+                    // texture mode: the map draws inside the dialog's own window (a SurfaceView there can stay blank on some phones)
+                    val view = remember {
+                        MapView(context, MapLibreMapOptions.createFromAttributes(context).textureMode(true)).apply { onCreate(null) }
+                    }
                     DisposableEffect(lifecycle, view) {
                         val obs = LifecycleEventObserver { _, e ->
                             when (e) {
@@ -287,7 +306,8 @@ fun MapPicker(lat: Double?, lng: Double?, onDismiss: () -> Unit, onPick: (Double
                     AndroidView({ view }, Modifier.fillMaxSize()) { mv ->
                         mv.getMapAsync { m ->
                             if (m.style == null) {
-                                m.setStyle(if (s.isBlank()) Style.Builder().fromJson(Geo.OSM_STYLE) else Style.Builder().fromUri(s))
+                                if (s.isBlank()) m.setStyle(Style.Builder().fromUri(Geo.FREE_STYLE)) { st -> runCatching { Geo.localiseLabels(st) } }
+                                else m.setStyle(Style.Builder().fromUri(s))
                                 m.cameraPosition = CameraPosition.Builder().target(center).zoom(if (lat != null) 16.0 else 11.0).build()
                                 m.addOnCameraIdleListener { m.cameraPosition.target?.let { center = it } }
                             }

@@ -152,6 +152,9 @@ object Api {
     suspend fun patchItem(id: String, body: JsonObject): MoveDetail = json.decodeFromString(call("PATCH", "/items/$id", body.body()))
     suspend fun deleteItem(id: String): MoveDetail = json.decodeFromString(call("DELETE", "/items/$id"))
     suspend fun quotes(id: String): Offers = get("/moves/$id/quotes")
+    /** booking step 5: the moving plan for the chosen offer (kept on the server while nothing changes) */
+    suspend fun movePlan(id: String, companyId: String, refresh: Boolean = false): MovePlan =
+        post("/moves/$id/move-plan", obj("company_id" to companyId, "refresh" to refresh))
     suspend fun confirm(id: String, companyId: String) { call("POST", "/moves/$id/confirm", obj("company_id" to companyId).body()) }
     suspend fun tracking(id: String): Tracking = get("/moves/$id/tracking")
     suspend fun cancel(id: String, reason: String? = null, note: String? = null) =

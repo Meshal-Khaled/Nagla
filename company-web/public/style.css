@@ -165,3 +165,9 @@ html[dir="ltr"] .toast { transform: translateX(-50%); }
 .toast.error { background: var(--danger); }
 a.link { text-align: center; text-decoration: none; }
 details summary { cursor: pointer; }
+
+/* the moving plan */
+.plan h4 { font-size: 14px; margin: 0 0 6px; }
+.plan ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; }
+.plan ol.timeline { padding-inline-start: 0; }
+.plan details p { margin: 8px 0 0; }

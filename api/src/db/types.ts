@@ -209,6 +209,8 @@ export interface Moves {
   pickup_has_elevator: boolean | null;
   pickup_lat: Numeric | null;
   pickup_lng: Numeric | null;
+  plan: Json | null;
+  plan_draft: Json | null;
   preferred_time: string | null;
   status: Generated<MoveStatus>;
   updated_at: Generated<Timestamp>;

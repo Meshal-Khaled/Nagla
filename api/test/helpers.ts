@@ -1,4 +1,5 @@
 import { mkdtempSync } from 'node:fs';
+import type { PlanFacts } from '../src/modules/plan/plan.js';
 import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -42,6 +43,12 @@ export class StubAi implements AiClient {
   async detectRoom(req: DetectRoomRequest) {
     this.calls.push(req);
     return this.handler(req);
+  }
+  planCalls: PlanFacts[] = [];
+  planHandler: (facts: PlanFacts) => unknown = () => { throw new Error('planner_off'); };
+  async movePlan(facts: PlanFacts) {
+    this.planCalls.push(facts);
+    return this.planHandler(facts);
   }
 }
 

@@ -100,6 +100,9 @@ fun TaskScreen(nav: NavHostController, id: String) {
     )
     fun withPhoto(stage: String) { pendingStage = stage; camera("status") }
 
+    var showPlan by rememberSaveable { mutableStateOf(false) }
+    val lockedPlan = loader.data?.plan
+    if (showPlan && lockedPlan != null) { MovePlanScreen(lockedPlan) { showPlan = false }; return }
     AppScreen(loader.data?.let { "#${it.move_no}" } ?: t("المهمة", "Task"), onBack = { nav.popBackStack() }) { pad ->
         RefreshList(loader, pad) { x ->
             val done = x.current_stage == "completed"
@@ -152,6 +155,7 @@ fun TaskScreen(nav: NavHostController, id: String) {
                     PrimaryButton(t("فتح المحادثة", "Open chat"), { nav.navigate("chat/$id") }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Outlined.Chat)
                 }
             }
+            x.plan?.let { p -> item { MovePlanCard(p) { showPlan = true } } }
             item {
                 SectionCard(title = t("معلومات النقل", "Move information"), icon = Icons.Outlined.Info) {
                     PlaceRow(t("الاستلام", "Pickup"), x.pickup)

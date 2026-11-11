@@ -1,7 +1,10 @@
 import { DetectRoomResponse, type DetectRoomRequest } from './contract.js';
+import type { PlanFacts } from '../plan/plan.js';
 
 export interface AiClient {
   detectRoom(req: DetectRoomRequest): Promise<DetectRoomResponse>;
+  /** the wording of the moving plan (booking step 5); throws when the planner is off or fails */
+  movePlan(facts: PlanFacts): Promise<unknown>;
 }
 
 export class AiError extends Error {}
@@ -43,4 +46,22 @@ export class HttpAiClient implements AiClient {
     if (!parsed.success) throw new AiError(`AI response for room ${req.room} does not match the contract`);
     return parsed.data;
   }
+
+  async movePlan(facts: PlanFacts): Promise<unknown> {
+    let res: Response;
+    try {
+      res = await fetch(new URL('/move-plan', this.baseUrl), {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(facts),
+        signal: AbortSignal.timeout(PLAN_TIMEOUT_MS),
+      });
+    } catch (e) {
+      throw new AiError(`AI service unreachable: ${(e as Error).message}`);
+    }
+    const body = await res.json().catch(() => null) as { plan?: unknown; error?: string } | null;
+    if (!res.ok || !body?.plan) throw new AiError(`AI plan error ${res.status}: ${body?.error ?? 'no plan'}`);
+    return body.plan;
+  }
 }
+
+// the customer waits on this screen; past this the basic plan is shown instead
+const PLAN_TIMEOUT_MS = 45_000;

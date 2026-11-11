@@ -6,6 +6,7 @@ import { itemCatalog } from '../catalog/store.js';
 import { estimate } from '../quotes/estimator.js';
 import { loadCompanyTrucks, loadEstimateItems, loadSettings } from '../quotes/inputs.js';
 import { assertDraft, loadMove } from './access.js';
+import { assemble, basicText, planInput, type MovePlan } from '../plan/plan.js';
 import { moveDetails } from './view.js';
 
 /** Agent links stay valid until the move ends, capped at this many days after the date window. */
@@ -66,8 +67,14 @@ export async function confirmMove(deps: Deps, moveId: string, user: AuthUser, co
       is_locked: true,
     }).execute();
 
+    const input = await planInput(trx, deps.catalog, moveId, offer);
+    const seen = move.plan_draft as MovePlan | null;
+    const plan = seen?.hash === input.hash ? seen : assemble(input, basicText(input), 'basic');
+
     const dateTo = move.date_to ?? move.date_from!;
     await trx.updateTable('moves').set({
+      plan: JSON.stringify(plan),
+      plan_draft: null,
       status: 'confirmed',
       current_stage: 'confirmed',
       company_id: companyId,

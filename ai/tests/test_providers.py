@@ -121,3 +121,49 @@ def test_gemini_sends_the_response_schema():
     p = GeminiProvider(api_key="k", transport=httpx.MockTransport(handler))
     asyncio.run(p.complete(prompt="x", images=[], schema={"type": "OBJECT"}))
     assert seen["body"]["generationConfig"]["responseSchema"] == {"type": "OBJECT"}
+
+
+GOOD = {"candidates": [{"content": {"parts": [{"text": '{"items": []}'}]}}]}
+
+
+@pytest.mark.anyio
+async def test_gemini_retries_when_busy_then_succeeds(monkeypatch):
+    monkeypatch.setenv("GEMINI_RETRY_WAITS_S", "0,0,0")
+    calls = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        return httpx.Response(503, json={"error": {"status": "UNAVAILABLE"}}) if len(calls) < 3 else httpx.Response(200, json=GOOD)
+    g = GeminiProvider(api_key="g", model="main", base_url="http://g", transport=httpx.MockTransport(handler))
+    assert await g.complete(prompt="P", images=[]) == '{"items": []}'
+    assert len(calls) == 3
+
+
+@pytest.mark.anyio
+async def test_gemini_stays_busy_raises_busy_and_uses_the_fallback_model(monkeypatch):
+    monkeypatch.setenv("GEMINI_RETRY_WAITS_S", "0,0,0")
+    monkeypatch.setenv("GEMINI_FALLBACK_MODEL", "lite")
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        return httpx.Response(429, text="RESOURCE_EXHAUSTED")
+    g = GeminiProvider(api_key="g", model="main", base_url="http://g", transport=httpx.MockTransport(handler))
+    with pytest.raises(ProviderError) as e:
+        await g.complete(prompt="P", images=[])
+    assert e.value.busy
+    assert calls == ["/models/main:generateContent"] * 2 + ["/models/lite:generateContent"] * 2
+
+
+@pytest.mark.anyio
+async def test_gemini_does_not_retry_a_bad_request(monkeypatch):
+    monkeypatch.setenv("GEMINI_RETRY_WAITS_S", "0,0,0")
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(400, text="bad")
+    g = GeminiProvider(api_key="g", base_url="http://g", transport=httpx.MockTransport(handler))
+    with pytest.raises(ProviderError) as e:
+        await g.complete(prompt="P", images=[])
+    assert not e.value.busy and len(calls) == 1

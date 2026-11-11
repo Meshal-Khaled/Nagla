@@ -99,6 +99,7 @@ export async function technicianRoutes(app: FastifyInstance, deps: Deps) {
       },
       schedule: { date_from: m.date_from, date_to: m.date_to, preferred_time: m.preferred_time },
       notes: m.notes,
+      plan: m.plan ?? null,
       services,
       quote: sheet.quote,
       job_sheet: { totals: sheet.totals, load_order: sheet.load_order },

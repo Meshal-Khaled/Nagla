@@ -207,7 +207,8 @@ function renderDetail() {
         <td>${esc(i.quantity)}</td><td>${esc((i.volume_m3 * i.quantity).toFixed(2))} m³</td><td>${esc(Math.round(i.weight_kg * i.quantity))} ${t('كغ', 'kg')}</td></tr>`).join('')}</tbody></table>
       ${sheet?.load_order?.length ? `<p class="note">${t('ترتيب التحميل: ', 'Load order: ')}${sheet.load_order.slice(0, 12).map((x) => esc(t(x.name_ar, x.name_en))).join(' ← ')}${sheet.load_order.length > 12 ? ' …' : ''}</p>` : ''}
       ${m.photos?.length ? `<h3>${t('صور العميل', "Customer's photos")}</h3><div class="photos">${m.photos.map((p) => `<a href="/api${esc(p.url)}" target="_blank" rel="noopener"><img src="/api${esc(p.url)}" alt="" loading="lazy"></a>`).join('')}</div>` : ''}
-    </div>`;
+    </div>
+    ${planHtml(m.plan)}`;
 
   $('#detail').querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act, b)));
   $('#chat-form').addEventListener('submit', sendChat);

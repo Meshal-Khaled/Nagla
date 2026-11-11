@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -280,6 +281,9 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
         busy = true; error = null
         scope.launch { try { block(); loader.reload(true) } catch (e: Exception) { error = errorText(e) } finally { busy = false } }
     }
+    var showPlan by rememberSaveable { mutableStateOf(false) }
+    val lockedPlan = loader.data?.move?.plan
+    if (showPlan && lockedPlan != null) { MovePlanScreen(lockedPlan) { showPlan = false }; return }
     val title = loader.data?.move?.let { if (company) "#${it.move_no}" else t("تتبّع النقلة #", "Track move #") + it.move_no } ?: t("الطلب", "Move")
     val bundle = loader.data
     AppScreen(title, onBack = { nav.popBackStack() }, bottomBar = {
@@ -376,6 +380,7 @@ fun MoveDetailScreen(nav: NavHostController, id: String) {
                     Row { Text(t("الإجمالي", "Total"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); Text(sar(q.price_halalas), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) }
                 }
             } }
+            m.plan?.let { p -> item { MovePlanCard(p) { showPlan = true } } }
             item { ItemsSummary(m.items) }
         }
     }

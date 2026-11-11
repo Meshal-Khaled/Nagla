@@ -195,7 +195,8 @@ function renderTask() {
       <table><thead><tr><th>#</th><th>${t('القطعة', 'Item')}</th><th>${t('الكمية', 'Qty')}</th><th></th></tr></thead>
       <tbody>${(x.job_sheet?.load_order ?? []).map((i) => `<tr><td>${esc(i.step)}</td><td>${esc(t(i.name_ar, i.name_en))}</td><td>${esc(i.quantity)}</td>
         <td>${i.heavy ? `<span class="tag">${t('ثقيل', 'heavy')}</span>` : ''}${i.dismantle ? `<span class="tag">${t('فك وتركيب', 'dismantle')}</span>` : ''}${i.fragile ? `<span class="tag fragile">${t('قابل للكسر', 'fragile')}</span>` : ''}</td></tr>`).join('')}</tbody></table>
-    </div>`;
+    </div>
+    ${planHtml(x.plan)}`;
 
   $('#detail').querySelectorAll('[data-stage]').forEach((b) => b.addEventListener('click', () => setStage(b.dataset.stage, b)));
   $('#detail').querySelectorAll('[data-stars]').forEach((b) => b.addEventListener('click', () => rate(Number(b.dataset.stars))));

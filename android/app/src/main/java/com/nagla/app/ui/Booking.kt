@@ -77,6 +77,7 @@ private val STEPS = listOf(
     "الصور" to "Photos",
     "الأغراض" to "Items",
     "العروض" to "Offers",
+    "الخطة" to "Plan",
 )
 
 /** 3 → "٣" in Arabic */
@@ -101,6 +102,18 @@ private val ROOM_TEMPLATES = listOf(
 
 /** the same slug the API stores ("Bedroom 2" → "bedroom_2", Arabic letters kept) */
 private fun roomSlug(name: String) = name.trim().lowercase().replace(Regex("[^a-z0-9؀-ۿ]+"), "_").trim('_')
+
+/** a scan failure in plain words: the AI service's raw reply (JSON, status codes) never reaches the screen */
+private fun scanErrorText(e: Exception): String {
+    val m = e.message.orEmpty()
+    return when {
+        listOf("vision_busy", "503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "high demand", "unreachable", "timeout").any { m.contains(it, ignoreCase = true) } ->
+            t("خدمة المسح الذكي مشغولة الآن. انتظر دقيقة واضغط «التالي: المسح الذكي» مرة ثانية؛ صورك محفوظة.",
+                "The AI scan is busy right now. Wait a minute and tap \"Next: AI scan\" again; your photos are saved.")
+        e is java.io.IOException -> errorText(e)
+        else -> t("تعذر مسح الصور. حاول مرة ثانية، أو أضف صوراً أوضح.", "We couldn't scan the photos. Try again, or add clearer photos.")
+    }
+}
 
 /** the 3x3 grid cell of a photo, in words (the photo's own left/right) */
 fun cellName(cell: Int): String = when (cell) {
@@ -130,6 +143,9 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
     var scanning by remember { mutableStateOf(false) }
     var chosen by remember { mutableStateOf<Offer?>(null) }
     var askConfirm by remember { mutableStateOf(false) }
+    // step 5: the moving plan for the chosen offer
+    var plan by remember { mutableStateOf<com.nagla.app.data.MovePlan?>(null) }
+    var planLoading by remember { mutableStateOf(false) }
     var saved by remember { mutableStateOf<List<SavedAddress>>(emptyList()) }
 
     // step 1 form
@@ -197,8 +213,23 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
                 }
                 refresh(); step = 2
             } catch (e: Exception) {
-                error = t("تعذر المسح: ", "Scan failed: ") + errorText(e)
+                android.util.Log.w("Naqla", "scan failed: ${e.message}") // the full reason stays in the log, not on screen
+                error = scanErrorText(e)
             } finally { scanning = false }
+        }
+    }
+
+    // step 5 → the plan; the server keeps it while nothing changed, so asking again is cheap
+    fun loadPlan(refresh: Boolean = false) {
+        val id = moveId ?: return
+        val o = chosen ?: return
+        if (planLoading) return
+        if (plan?.company_id != o.company_id) plan = null
+        planLoading = true; error = null
+        scope.launch {
+            try { plan = Api.movePlan(id, o.company_id, refresh) }
+            catch (e: Exception) { error = t("تعذر تجهيز الخطة: ", "Couldn't make the plan: ") + errorText(e) }
+            finally { planLoading = false }
         }
     }
 
@@ -213,13 +244,15 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
         0 -> dateFrom != null && pickup.complete && dropoff.complete
         1 -> m != null && m.photos.isNotEmpty() && !uploading
         2 -> m != null && m.items.any { it.disposition == "keep" }
-        else -> chosen != null
+        3 -> chosen != null
+        else -> chosen != null && plan?.company_id == chosen?.company_id && !planLoading
     }
     val nextHint = when (step) {
         0 -> t("أكمل التاريخ والعنوانين للمتابعة.", "Add the date and both addresses to continue.")
         1 -> t("أضف غرفة وصوّرها للمتابعة.", "Add a room and photograph it to continue.")
         2 -> t("حدد قطعة واحدة على الأقل للنقل.", "Mark at least one item as Move.")
-        else -> t("اختر شركة للمتابعة.", "Pick a company to continue.")
+        3 -> t("اختر شركة للمتابعة.", "Pick a company to continue.")
+        else -> t("لحظات، نجهّز خطتك.", "One moment, your plan is on its way.")
     }
 
     AppScreen(t("نقلة جديدة", "New move"), onBack = ::back, actions = {
@@ -231,12 +264,13 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
             step = step,
             nextLabel = when (step) {
                 0 -> t("التالي: الصور", "Next: photos"); 1 -> t("التالي: المسح الذكي", "Next: AI scan"); 2 -> t("التالي: عروض الشركات", "Next: company offers")
-                else -> t("مراجعة وتأكيد", "Review & confirm") + (chosen?.let { " · " + sar(it.price_halalas) } ?: "")
+                3 -> t("التالي: خطتك", "Next: your plan")
+                else -> t("تأكيد الحجز", "Confirm booking") + (chosen?.let { " · " + sar(it.price_halalas) } ?: "")
             },
-            nextIcon = when (step) { 1 -> Icons.Outlined.AutoAwesome; 3 -> Icons.Outlined.Check; else -> Icons.AutoMirrored.Outlined.ArrowForward },
+            nextIcon = when (step) { 1, 3 -> Icons.Outlined.AutoAwesome; 4 -> Icons.Outlined.Check; else -> Icons.AutoMirrored.Outlined.ArrowForward },
             nextEnabled = nextEnabled, hint = if (!nextEnabled) nextHint else null, busy = busy || uploading,
             onBack = ::back,
-            onNext = { when (step) { 0 -> saveDetails(); 1 -> photosNext(); 2 -> step = 3; else -> askConfirm = true } },
+            onNext = { when (step) { 0 -> saveDetails(); 1 -> photosNext(); 2 -> step = 3; 3 -> step = 4; else -> askConfirm = true } },
             summary = when {
                 step == 2 && m != null -> {
                     val keep = m.items.filter { it.disposition == "keep" }.sumOf { it.quantity }
@@ -247,7 +281,7 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
                         if (donate > 0) t("${num(donate)} للتبرع", "$donate to donate") else null,
                     ).joinToString(" · ")
                 }
-                step == 3 -> t("بالتأكيد، يُثبَّت السعر وقائمة الأغراض. بعدها لا يمكن تعديل الأغراض.", "Confirming locks the price and the item list. Items can't be edited after that.") to ""
+                step == 4 -> t("بالتأكيد، يُثبَّت السعر وقائمة الأغراض والخطة. بعدها لا يمكن تعديل الأغراض.", "Confirming locks the price, the item list and the plan. Items can't be edited after that.") to ""
                 else -> null
             },
         )
@@ -265,7 +299,8 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
                         0 -> DetailsStep(pickup, dropoff, saved, dateFrom, { dateFrom = it }, dateTo, { dateTo = it }, time, { time = it }, notes, { notes = it })
                         1 -> PhotosStep(move, scanning, { uploading = it }, onChanged = { scope.launch { runCatching { refresh() } } }, onError = { error = it })
                         2 -> ItemsStep(move, onMove = { move = it }, onError = { error = it })
-                        else -> OffersStep(moveId!!, move, chosen) { chosen = it }
+                        3 -> OffersStep(moveId!!, move, chosen) { chosen = it }
+                        else -> PlanStep(plan, planLoading, onLoad = ::loadPlan)
                     }
                 }
             }
@@ -276,8 +311,8 @@ fun BookingScreen(nav: NavHostController, startId: String?) {
         if (askConfirm) AlertDialog(onDismissRequest = { askConfirm = false },
             icon = { Icon(Icons.Outlined.Lock, null) },
             title = { Text(t("تأكيد الطلب؟", "Confirm your move?")) },
-            text = { Text(t("سيُرسل طلبك إلى ${o.company_name} ويُثبّت السعر ${sar(o.price_halalas)}. بعدها لا يمكن تعديل الأغراض.",
-                "Your move goes to ${o.company_name} and the price ${sar(o.price_halalas)} is locked. Items can't be edited after this.")) },
+            text = { Text(t("سيُرسل طلبك وخطته إلى ${o.company_name} ويُثبّت السعر ${sar(o.price_halalas)}. بعدها لا يمكن تعديل الأغراض.",
+                "Your move and its plan go to ${o.company_name} and the price ${sar(o.price_halalas)} is locked. Items can't be edited after this.")) },
             confirmButton = { TextButton({
                 askConfirm = false
                 run { Api.confirm(moveId!!, o.company_id); nav.navigate("move/$moveId") { popUpTo("home") } }
@@ -320,9 +355,9 @@ private fun StepBar(
     Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (summary != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                if (step == 3) { Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.width(6.dp)) }
-                Text(summary.first, style = if (step == 3) MaterialTheme.typography.bodySmall else MaterialTheme.typography.titleSmall,
-                    color = if (step == 3) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                if (step == 4) { Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.width(6.dp)) }
+                Text(summary.first, style = if (step == 4) MaterialTheme.typography.bodySmall else MaterialTheme.typography.titleSmall,
+                    color = if (step == 4) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 if (summary.second.isNotBlank()) Text(summary.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -867,6 +902,39 @@ private fun CatalogSheet(onDismiss: () -> Unit, onPick: (AddDraft) -> Unit) {
                         modifier = Modifier.clickable { onPick(AddDraft(r, "")) },
                     )
                     HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+// ---------- 5. the moving plan: made for the chosen offer from the items, volume, date and time
+
+@Composable
+private fun PlanStep(plan: com.nagla.app.data.MovePlan?, loading: Boolean, onLoad: (Boolean) -> Unit) {
+    // every visit asks the server: it answers from what it kept unless the items, offer or date changed
+    LaunchedEffect(Unit) { onLoad(false) }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            StepHeader(t("خطة نقلتك", "Your moving plan"),
+                t("جهّزناها من أغراضك وحجمها والموعد والشركة اللي اخترتها.", "Made from your things, their volume, the date and the company you picked."))
+        }
+        if (plan == null) {
+            item {
+                if (loading) PlanLoading()
+                else EmptyState(t("ما قدرنا نجهّز الخطة", "We couldn't make the plan"), t("جرّب مرة ثانية.", "Please try again."), Icons.Outlined.AutoAwesome)
+            }
+            if (!loading) item {
+                OutlinedButton({ onLoad(false) }, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = MaterialTheme.shapes.medium) { Text(t("حاول مرة ثانية", "Try again")) }
+            }
+        } else {
+            planItems(plan)
+            item {
+                OutlinedButton({ onLoad(true) }, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !loading, shape = MaterialTheme.shapes.medium) {
+                    if (loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Outlined.Refresh, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(t("اقترح خطة جديدة", "Suggest a new plan"))
                 }
             }
         }

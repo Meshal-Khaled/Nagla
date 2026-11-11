@@ -6,7 +6,7 @@ import type { MoveRow } from './access.js';
 
 /** Full move as the API returns it (never includes the agent token hash). */
 export async function moveDetails({ db, storage, catalog }: Pick<Deps, 'db' | 'storage' | 'catalog'>, move: MoveRow) {
-  const { agent_token_hash: _hash, ...fields } = move;
+  const { agent_token_hash: _hash, plan_draft: _draft, ...fields } = move;
 
   const [items, photos, detections, quote, company, people, scannedRows] = await Promise.all([
     db.selectFrom('move_items')

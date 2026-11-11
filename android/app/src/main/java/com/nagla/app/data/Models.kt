@@ -71,6 +71,26 @@ import kotlinx.serialization.Serializable
     val draft_saved: Boolean = false, val archived_at: String? = null,
     val customer: Person? = null, val technician: Person? = null, val company: CompanyRef? = null, val progress: Progress? = null,
     val items: List<Item> = emptyList(), val photos: List<Photo> = emptyList(), val quote: LockedQuote? = null,
+    val plan: MovePlan? = null,
+)
+
+// ---------- the moving plan (booking step 5): numbers from the server, wording from the AI (or the basic plan)
+@Serializable data class Text2(val ar: String, val en: String)
+@Serializable data class PlanFacts(
+    val date: String, val start_time: String, val end_time: String, val total_minutes: Int = 0, val days_until: Int = 0,
+    val company_name: String = "", val truck_name: String = "", val trips: Int = 1, val crew_size: Int = 1, val volume_m3: Double = 0.0,
+    val keep_count: Int = 0, val sell_count: Int = 0, val donate_count: Int = 0, val fragile_count: Int = 0,
+    val pickup_floor: Int? = null, val pickup_elevator: Boolean? = null, val dropoff_floor: Int? = null, val dropoff_elevator: Boolean? = null,
+)
+@Serializable data class PlanBefore(val `when`: String, val tasks: List<Text2> = emptyList())
+@Serializable data class PlanStep(val key: String, val start: String, val end: String, val minutes: Int, val title: Text2, val note: Text2? = null)
+@Serializable data class PlanItemRef(val id: String, val name_ar: String, val name_en: String, val quantity: Int = 1, val fragile: Boolean = false)
+@Serializable data class PlanGroup(val title: Text2, val note: Text2? = null, val items: List<PlanItemRef> = emptyList())
+@Serializable data class MovePlan(
+    val source: String = "basic", val created_at: String? = null, val hash: String = "", val company_id: String = "",
+    val facts: PlanFacts, val headline: Text2, val summary: Text2,
+    val before: List<PlanBefore> = emptyList(), val day: List<PlanStep> = emptyList(),
+    val load_order: List<PlanGroup> = emptyList(), val tips: List<Text2> = emptyList(),
 )
 
 @Serializable data class Offer(
@@ -127,7 +147,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class TaskDetail(
     val id: String, val move_no: Long, val status: String, val current_stage: String? = null, val bucket: String = "",
     val progress: Progress? = null, val customer: Person, val pickup: Place, val dropoff: Place, val schedule: Schedule,
-    val notes: String? = null, val services: List<String> = emptyList(), val quote: SheetQuote? = null,
+    val notes: String? = null, val services: List<String> = emptyList(), val quote: SheetQuote? = null, val plan: MovePlan? = null,
     val job_sheet: JobSheet = JobSheet(), val statuses: List<StatusStep> = emptyList(), val next_stages: List<String> = emptyList(),
     val recommended_next: String? = null, val duration_minutes: Int? = null, val client_rating: Rating? = null,
     val events: List<Event> = emptyList(),

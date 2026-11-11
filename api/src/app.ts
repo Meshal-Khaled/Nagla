@@ -21,6 +21,7 @@ import { collabRoutes } from './modules/technician/collab.js';
 import { geoRoutes } from './modules/geo/routes.js';
 import { profileRoutes } from './modules/profile/routes.js';
 import { technicianRoutes } from './modules/technician/routes.js';
+import { planRoutes } from './modules/plan/routes.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const devUiDir = path.join(root, 'devui');
@@ -52,7 +53,7 @@ export async function buildApp(deps: Deps) {
 
   for (const routes of [
     authRoutes, moveRoutes, photoRoutes, jobRoutes, itemRoutes, catalogRoutes, quoteRoutes,
-    trackingRoutes, agentPageRoutes, companyRoutes, deviceRoutes, technicianRoutes, collabRoutes, profileRoutes, geoRoutes,
+    trackingRoutes, agentPageRoutes, companyRoutes, deviceRoutes, technicianRoutes, collabRoutes, profileRoutes, geoRoutes, planRoutes,
   ]) {
     await routes(app, deps);
   }

@@ -111,7 +111,9 @@ object Api {
     suspend fun login(email: String, password: String): Tokens = post("/auth/login", obj("email" to email, "password" to password))
     suspend fun register(name: String, email: String, password: String): Tokens =
         post("/auth/register", obj("name" to name, "email" to email, "password" to password))
-    suspend fun googleNative(idToken: String): Tokens = post("/auth/google/native", obj("id_token" to idToken))
+    suspend fun googleNative(idToken: String): GoogleSignIn = post("/auth/google/native", obj("id_token" to idToken))
+    suspend fun googleComplete(signupToken: String, name: String, phone: String, gender: String): Tokens =
+        post("/auth/google/complete", obj("signup_token" to signupToken, "name" to name, "phone" to phone, "gender" to gender))
     suspend fun googleStatus(): GoogleStatus = json.decodeFromString(call("GET", "/auth/google/status", auth = false))
     suspend fun me(): Me = get("/auth/me")
     suspend fun logout() { Prefs.refresh?.let { runCatching { call("POST", "/auth/logout", obj("refresh_token" to it).body(), auth = false) } } }

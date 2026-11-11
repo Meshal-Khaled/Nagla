@@ -5,10 +5,16 @@ import kotlinx.serialization.Serializable
 // Mirrors of the API's JSON (unknown keys are ignored, so the API can add fields freely).
 
 @Serializable data class Tokens(val access_token: String, val refresh_token: String)
+/** Google sign-in: tokens for a known account; for a new one a sign-up pass and what Google told us (profile step next) */
+@Serializable data class GoogleSignupProfile(val email: String, val name: String = "")
+@Serializable data class GoogleSignIn(
+    val access_token: String? = null, val refresh_token: String? = null,
+    val needs_profile: Boolean = false, val signup_token: String? = null, val profile: GoogleSignupProfile? = null,
+)
 
 @Serializable data class Me(
     val id: String, val name: String, val email: String, val role: String,
-    val phone: String? = null, val company_id: String? = null, val company_name: String? = null,
+    val phone: String? = null, val gender: String? = null, val company_id: String? = null, val company_name: String? = null,
 )
 
 @Serializable data class Progress(val index: Int = 0, val total: Int = 10, val percent: Int = 0)

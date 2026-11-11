@@ -66,13 +66,34 @@ describe('auth', () => {
       expect((await g.app.inject({ method: 'GET', url: '/auth/google/status' })).json())
         .toEqual({ enabled: true, native: true, web: false, client_id: WEB_ID });
 
-      // new Google user → new customer
+      // new Google user → no account yet: a sign-up pass and what Google told us
       const res = await signIn(g.app, await token({ sub: 'g-new', email: 'New@Gmail.test', email_verified: true, name: 'New User' }));
       expect(res.statusCode).toBe(200);
-      const me = (await g.app.inject({ method: 'GET', url: '/auth/me', headers: bearer(res.json().access_token) })).json();
-      expect(me).toMatchObject({ email: 'new@gmail.test', role: 'customer', name: 'New User' });
-      // same Google account again → same user
+      const pass = res.json();
+      expect(pass).toMatchObject({ needs_profile: true, profile: { email: 'new@gmail.test', name: 'New User' } });
+      expect(pass.access_token).toBeUndefined();
+      expect(await g.db.selectFrom('users').select('id').where('email', '=', 'new@gmail.test').executeTakeFirst()).toBeUndefined();
+
+      const complete = (payload: object) => g.app.inject({ method: 'POST', url: '/auth/google/complete', payload });
+      const profile = { signup_token: pass.signup_token, name: 'Sara Ahmed', phone: '+966 55 123 4567', gender: 'female' };
+      // checked before anything is made
+      expect((await complete({ ...profile, gender: 'other' })).statusCode).toBe(400);
+      expect((await complete({ ...profile, phone: 'call me' })).statusCode).toBe(400);
+      expect((await complete({ ...profile, signup_token: 'x'.repeat(40) })).statusCode).toBe(401);
+      // a different signed token (e.g. the OAuth state) is not a sign-up pass
+      const { signState } = await import('../src/auth/tokens.js');
+      expect((await complete({ ...profile, signup_token: await signState(g.deps.config.JWT_SECRET, { nonce: 'n' }) })).statusCode).toBe(401);
+
+      const made = await complete(profile);
+      expect(made.statusCode).toBe(201);
+      const me = (await g.app.inject({ method: 'GET', url: '/auth/me', headers: bearer(made.json().access_token) })).json();
+      expect(me).toMatchObject({ email: 'new@gmail.test', role: 'customer', name: 'Sara Ahmed', phone: '+966 55 123 4567', gender: 'female' });
+      // sent twice → the same account, never a second one
+      const twice = await complete(profile);
+      expect((await g.app.inject({ method: 'GET', url: '/auth/me', headers: bearer(twice.json().access_token) })).json().id).toBe(me.id);
+      // same Google account again → signed straight in, no profile step
       const again = await signIn(g.app, await token({ sub: 'g-new', email: 'new@gmail.test', email_verified: true }));
+      expect(again.json().needs_profile).toBeUndefined();
       expect((await g.app.inject({ method: 'GET', url: '/auth/me', headers: bearer(again.json().access_token) })).json().id).toBe(me.id);
 
       // verified email of an existing password account → linked, same user

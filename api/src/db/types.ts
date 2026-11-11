@@ -279,6 +279,7 @@ export interface Users {
   company_id: string | null;
   created_at: Generated<Timestamp>;
   email: string;
+  gender: 'male' | 'female' | null;
   google_sub: string | null;
   id: Generated<string>;
   name: string;

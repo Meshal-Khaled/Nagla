@@ -57,6 +57,8 @@ fun AuthScreen() {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var google by remember { mutableStateOf<String?>(null) } // web client id when Google is on
+    // a first Google sign-in: the profile step (name, phone, gender, then a summary) before the account exists
+    var signup by remember { mutableStateOf<com.nagla.app.data.GoogleSignIn?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     // whether Google is on comes from the server; retry a few times (the network may still be waking up)
@@ -88,13 +90,21 @@ fun AuthScreen() {
                 val result = CredentialManager.create(context).getCredential(context as Activity, GetCredentialRequest.Builder().addCredentialOption(option).build())
                 val c = result.credential
                 if (c is CustomCredential && c.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    signIn(Api.googleNative(GoogleIdTokenCredential.createFrom(c.data).idToken))
+                    val r = Api.googleNative(GoogleIdTokenCredential.createFrom(c.data).idToken)
+                    if (r.needs_profile && r.signup_token != null && r.profile != null) signup = r
+                    else if (r.access_token != null && r.refresh_token != null) signIn(com.nagla.app.data.Tokens(r.access_token, r.refresh_token))
+                    else error = t("تعذر تسجيل الدخول بـ Google.", "Google sign-in failed.")
                 } else error = t("تعذر تسجيل الدخول بـ Google.", "Google sign-in failed.")
             } catch (_: GetCredentialCancellationException) {
             } catch (e: Exception) {
                 error = errorText(e)
             } finally { busy = false }
         }
+    }
+
+    signup?.let { s ->
+        GoogleSignupScreen(s.signup_token!!, s.profile!!, onCancel = { signup = null })
+        return
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
